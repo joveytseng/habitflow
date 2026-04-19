@@ -5,11 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
+<meta name="theme-color" content="#f07167">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="HabitFlow">
+<link rel="manifest" href="manifest.json">
 <title>HabitFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- PWA install banner -->
+<div id="installBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#fff;border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -4px 20px rgba(0,0,0,.12);padding:16px 20px;display:none;align-items:center;gap:12px">
+  <div style="flex:1">
+    <div style="font-size:14px;font-weight:700;color:var(--t1)">加到主畫面，像 App 一樣使用</div>
+    <div style="font-size:12px;color:var(--t2);margin-top:2px">隨時打開，更方便追蹤習慣</div>
+  </div>
+  <button id="installBtn" style="background:var(--coral);color:#fff;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">安裝</button>
+  <button onclick="dismissInstall()" style="background:transparent;border:none;color:var(--t2);font-size:20px;cursor:pointer;padding:4px;line-height:1">×</button>
+</div>
 <div id="saveStatus" style="display:none;position:fixed;top:14px;right:14px;z-index:300;font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.15)"></div>
 <div class="cwrap">
   <div class="topbar">
@@ -258,6 +272,56 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=6"></script>
+<script type="module" src="app.js?v=7"></script>
+<script>
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/habitflow/sw.js');
+}
+
+// PWA Install Prompt
+let deferredPrompt;
+const banner = document.getElementById('installBanner');
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem('hf_install_dismissed')) {
+    banner.style.display = 'flex';
+  }
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') localStorage.setItem('hf_install_dismissed', '1');
+  deferredPrompt = null;
+  banner.style.display = 'none';
+});
+
+function dismissInstall() {
+  banner.style.display = 'none';
+  localStorage.setItem('hf_install_dismissed', '1');
+}
+
+window.addEventListener('appinstalled', () => {
+  banner.style.display = 'none';
+});
+
+// iOS Safari: show manual instructions after 3 seconds
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone;
+if (isIOS && !isStandalone && !localStorage.getItem('hf_install_dismissed')) {
+  setTimeout(() => { banner.style.display = 'flex'; }, 3000);
+  installBtn.textContent = '如何安裝？';
+  installBtn.addEventListener('click', () => {
+    alert('請點底部的「分享」圖示 → 選「加入主畫面」，就可以像 App 一樣使用！');
+    banner.style.display = 'none';
+    localStorage.setItem('hf_install_dismissed', '1');
+  }, { once: true });
+}
+</script>
 </body>
 </html>

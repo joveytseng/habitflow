@@ -45,11 +45,6 @@ function isDue(h,d){
   return false;
 }
 function isDone(id,s){
-  const h=habits.find(x=>x.id===id);
-  if(h&&h.negative){
-    const count=(negRecords[s]&&negRecords[s][id])||0;
-    return count<=(h.limit||0);
-  }
   return(records[s]||[]).includes(id);
 }
 function fTxt(f){
@@ -180,9 +175,9 @@ function buildWeek(){
     const d=addD(mon,i),s=ds(d),isT=s===tds;
     const posH=habits.filter(h=>!h.negative),negH=habits.filter(h=>h.negative);
     const posDue=posH.filter(h=>isDue(h,d)),posDone=posDue.filter(h=>(records[s]||[]).includes(h.id)).length;
-    const negDue=negH.filter(h=>isDue(h,d)); // isDue 已含 dateStart 判斷
-    const negCtrl=negDue.filter(h=>((negRecords[s]&&negRecords[s][h.id])||0)<=(h.limit||0)).length;
-    const hasDone=(posDone>0||negCtrl>0)&&!isT;
+    const negDue=negH.filter(h=>isDue(h,d));
+    const negDone=negDue.filter(h=>(records[s]||[]).includes(h.id)).length;
+    const hasDone=(posDone>0||negDone>0)&&!isT;
     const el=document.createElement('div');
     el.className='wday'+(isT?' today':hasDone?' has-done':'');
     el.innerHTML=`<div class="wdn">${WL[i]}</div><div class="wdd">${d.getDate()}</div>${hasDone?`<div class="wstar">★</div>`:''}`;
@@ -266,21 +261,25 @@ function buildTodayNeg(){
     const periodCount=negPeriodCount(h,targetDs);
     const dailyCount=(negRecords[targetDs]&&negRecords[targetDs][h.id])||0;
     const isOk=periodCount<=limit;
+    const isDoneToday=(records[targetDs]||[]).includes(h.id);
     const pl=negPeriodLabel(h);
     const rl=rTxt(h);
-    return `<div class="hcard">
-      <div class="hico ${h.color}">${h.icon}</div>
-      <div class="hmeta">
-        <div class="hname">${h.name}</div>
-        <div class="hfreq">${pl}上限：${limit} 次　<span style="font-weight:800;color:${isOk?'var(--sage)':'var(--coral)'}">${periodCount}/${limit}</span></div>
-        ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
-        <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
+    return `<div style="margin-bottom:10px">
+      <div class="hcard" style="margin-bottom:0">
+        <div class="hico ${h.color}">${h.icon}</div>
+        <div class="hmeta">
+          <div class="hname">${h.name}</div>
+          <div class="hfreq">${pl}上限：${limit} 次　<span style="font-weight:800;color:${isOk?'var(--sage)':'var(--coral)'}">${periodCount}/${limit}</span></div>
+          ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
+          <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
+        </div>
+        <div class="neg-counter">
+          <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
+          <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
+          <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
+        </div>
       </div>
-      <div class="neg-counter">
-        <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
-        <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
-        <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
-      </div>
+      <button onclick="togNeg('${h.id}','${targetDs}')" style="width:100%;padding:11px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;border:none;${isDoneToday?'background:var(--sage);color:#fff':'background:var(--bg);color:var(--t2);border:1.5px solid var(--border)'}">${isDoneToday?'✓ 本日達成':'本日達成'}</button>
     </div>`;
   }).join('');
 }
@@ -323,6 +322,18 @@ function negDec(id,targetDs){
   const cur=negRecords[targetDs][id]||0;
   if(cur>0)negRecords[targetDs][id]=cur-1;
   save();buildTodayNeg();updatePR();
+}
+function togNeg(id,targetDs){
+  if(!targetDs)targetDs=td();
+  const h=habits.find(x=>x.id===id);if(!h)return;
+  if(!records[targetDs])records[targetDs]=[];
+  const idx=records[targetDs].indexOf(id);
+  if(idx===-1){
+    const count=(negRecords[targetDs]&&negRecords[targetDs][id])||0;
+    if(count>(h.limit||0)){toast('已超過上限，無法打卡');return;}
+    records[targetDs].push(id);toast(targetDs===td()?'✓ 打卡成功！':'✓ 補打成功！');
+  }else{records[targetDs].splice(idx,1);}
+  save();buildTodayNeg();updatePR();buildWeek();
 }
 function togH(id,targetDs){
   if(!targetDs)targetDs=td();
@@ -472,9 +483,9 @@ function renderCal(){
   for(let day=1;day<=dim;day++){
     const d=new Date(calY,calM,day),s=ds(d);
     const posDue=posHCal.filter(h=>isDue(h,d)),posDone=posDue.filter(h=>(records[s]||[]).includes(h.id)).length;
-    const negDue=negHCal.filter(h=>isDue(h,d)); // isDue 含 dateStart
-    const negCtrl=negDue.filter(h=>((negRecords[s]&&negRecords[s][h.id])||0)<=(h.limit||0)).length;
-    const totalDue=posDue.length+negDue.length,totalDone=posDone+negCtrl;
+    const negDue=negHCal.filter(h=>isDue(h,d));
+    const negDone=negDue.filter(h=>(records[s]||[]).includes(h.id)).length;
+    const totalDue=posDue.length+negDue.length,totalDone=posDone+negDone;
     const isT=s===tds,all=totalDue>0&&totalDone===totalDue,some=totalDone>0&&totalDone<totalDue;
     let cls='calday';
     if(isT)cls+=' today-c';else if(all)cls+=' full';else if(some)cls+=' some';
@@ -878,7 +889,7 @@ window.hcalPrev=hcalPrev;window.hcalNext=hcalNext;window.yearPrev=yearPrev;windo
 window.setMT=setMT;window.setMT2=setMT2;window.pickFreq=pickFreq;window.togDay=togDay;
 window.pickIco=pickIco;window.pickCol=pickCol;window.closeModal=closeModal;window.saveItem=saveItem;
 window.editItem=editItem;window.togH=togH;window.qSet=qSet;window.qAdd=qAdd;
-window.negInc=negInc;window.negInc2=negInc2;window.negDec=negDec;window.pickNFreq=pickNFreq;
+window.negInc=negInc;window.negInc2=negInc2;window.negDec=negDec;window.togNeg=togNeg;window.pickNFreq=pickNFreq;
 window.qDec=qDec;window.qInc=qInc;window.qInc2=qInc2;
 window.exportCSV=exportCSV;window.copyUID=copyUID;window.importUID=importUID;
 

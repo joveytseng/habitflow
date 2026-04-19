@@ -1,0 +1,22 @@
+{
+  "name": "HabitFlow 習慣流",
+  "short_name": "HabitFlow",
+  "description": "當行動進入流，改變就不需要意志力。",
+  "start_url": "/habitflow/",
+  "display": "standalone",
+  "background_color": "#f7f4f0",
+  "theme_color": "#f07167",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
