@@ -298,8 +298,11 @@ input,button,select{font-family:var(--fn)}
 /* ── 節制習慣 ── */
 button{touch-action:manipulation}
 .neg-counter{display:flex;align-items:center;gap:5px;flex-shrink:0}
-.neg-btn{width:36px;height:36px;border-radius:50%;border:none;background:var(--bg2);color:var(--t1);font-size:20px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:transform .1s;touch-action:manipulation;-webkit-touch-callout:none}
+.neg-btn{width:34px;height:30px;border-radius:8px;border:none;background:var(--bg2);color:var(--t1);font-size:11px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:transform .1s;touch-action:manipulation;-webkit-touch-callout:none}
 .neg-btn:active{transform:scale(.88)}
+.nbtn-m{background:var(--pink-l);color:var(--coral)}
+.nbtn-p{background:var(--sage-l);color:var(--sage)}
+.nbtn-p2{background:var(--lav-l);color:var(--lav)}
 .mtbtn.an{border-color:var(--coral);color:var(--coral);background:var(--pink-l)}
 .neg-num{font-size:16px;font-weight:800;color:var(--t1);min-width:22px;text-align:center}
 .neg-num.over{color:var(--coral)}
@@ -307,3 +310,9 @@ button{touch-action:manipulation}
 .neg-status.ok{background:var(--sage-l);color:var(--sage)}
 .neg-status.over{background:var(--pink-l);color:var(--coral)}
 .fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.mini-calday.mc-neg-ok{background:#c0f0d8;color:#3090a0}
+.mini-calday.mc-neg-over{background:#ffd8d8;color:#d06060}
+.mini-calday.mc-goal{background:#ffddb8;color:#c07030}
+.hmc.hmc-neg-ok{background:#90d0b0}
+.hmc.hmc-neg-over{background:#f0a0a0}
+.hmc.hmc-goal{background:#f0c080}

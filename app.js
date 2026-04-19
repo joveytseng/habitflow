@@ -15,7 +15,7 @@ const WO=[1,2,3,4,5,6,0];
 const WL=['一','二','三','四','五','六','日'];
 const MTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
-let habits=[],goals=[],records={},negRecords={};
+let habits=[],goals=[],records={},negRecords={},goalRecords={};
 let selIco=ICONS[0],selCol='c0',curFreq='daily',curNFreq='daily',mType='habit',manT='h',stTab='week';
 let wkOff=0,calY,calM,hcalY,hcalM,yearY;
 
@@ -105,7 +105,7 @@ function showSaveStatus(ok,msg){
 
 async function save(){
   // 永遠先存本機備份
-  try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords}));}catch(e){}
+  try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords}));}catch(e){}
   try{
     const userId=getUserId();
     await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords});
@@ -127,8 +127,9 @@ async function loadData(){
       goals=data.goals||[];
       records=data.records||{};
       negRecords=data.negRecords||{};
+      goalRecords=data.goalRecords||{};
       loaded=true;
-      try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords}));}catch(e){}
+      try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords}));}catch(e){}
     }
   }catch(e){
     console.error('Firebase load error:',e);
@@ -137,7 +138,8 @@ async function loadData(){
   if(!loaded){
     try{
       const bk=localStorage.getItem('hf_data');
-      if(bk){const d=JSON.parse(bk);habits=d.habits||[];goals=d.goals||[];records=d.records||{};negRecords=d.negRecords||{};}
+      if(bk){const d=JSON.parse(bk);habits=d.habits||[];goals=d.goals||[];records=d.records||{};negRecords=d.negRecords||{};goalRecords=d.goalRecords||{};
+        if(habits.length)toast('⚠️ 從本機備份讀取（Firebase 未連線）');}
     }catch(e){}
   }
   buildAll();
@@ -253,9 +255,9 @@ function buildTodayNeg(){
         <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
       </div>
       <div class="neg-counter">
-        <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
-        <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
-        <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
+        <button class="neg-btn nbtn-m" onclick="negDec('${h.id}','${targetDs}')">-1</button>
+        <button class="neg-btn nbtn-p" onclick="negInc('${h.id}','${targetDs}')">+1</button>
+        <button class="neg-btn nbtn-p2" onclick="negInc2('${h.id}','${targetDs}')">+2</button>
       </div>
     </div>`;
   }).join('');
@@ -284,12 +286,14 @@ function buildTodayG(){
   }).join('');
 }
 
-function negInc(id,targetDs){
+function negInc(id,targetDs,n){
+  if(!n)n=1;
   if(!targetDs)targetDs=td();
   if(!negRecords[targetDs])negRecords[targetDs]={};
-  negRecords[targetDs][id]=(negRecords[targetDs][id]||0)+1;
+  negRecords[targetDs][id]=(negRecords[targetDs][id]||0)+n;
   save();buildTodayNeg();updatePR();
 }
+function negInc2(id,targetDs){negInc(id,targetDs,2);}
 function negDec(id,targetDs){
   if(!targetDs)targetDs=td();
   if(!negRecords[targetDs])negRecords[targetDs]={};
@@ -305,8 +309,8 @@ function togH(id,targetDs){
   else{records[targetDs].push(id);toast(targetDs===td()?'✓ 打卡成功！':'✓ 補打成功！')}
   save();buildTodayH();updatePR();buildWeek();
 }
-function qSet(id){const v=parseFloat(document.getElementById('gs_'+id).value);if(isNaN(v)||v<0)return;const g=goals.find(x=>x.id===id);if(!g)return;g.current=v;save();buildTodayG();toast('進度已更新！')}
-function qAdd(id){const v=parseFloat(document.getElementById('ga_'+id).value);if(isNaN(v)||v<=0)return;const g=goals.find(x=>x.id===id);if(!g)return;g.current=Math.min((g.current||0)+v,g.total);save();buildTodayG();toast(`+${v} 已累加！`)}
+function qSet(id){const v=parseFloat(document.getElementById('gs_'+id).value);if(isNaN(v)||v<0)return;const g=goals.find(x=>x.id===id);if(!g)return;const delta=v-(g.current||0);if(delta>0){const s=td();if(!goalRecords[s])goalRecords[s]={};goalRecords[s][id]=(goalRecords[s][id]||0)+delta;}g.current=v;save();buildTodayG();toast('進度已更新！')}
+function qAdd(id){const v=parseFloat(document.getElementById('ga_'+id).value);if(isNaN(v)||v<=0)return;const g=goals.find(x=>x.id===id);if(!g)return;const s=td();if(!goalRecords[s])goalRecords[s]={};goalRecords[s][id]=(goalRecords[s][id]||0)+v;g.current=Math.min((g.current||0)+v,g.total);save();buildTodayG();toast(`+${v} 已累加！`)}
 
 function updatePR(){
   const targetDs=viewDate||td();
@@ -357,10 +361,10 @@ function buildWeekTable(){
     days.forEach(d=>{
       const s=ds(d),isT=s===tds,due=isDue(h,d),done=isDone(h.id,s);
       let cls='wt-cell';
-      if(done)cls+=' '+doneClass;
+      if(due&&done)cls+=' '+doneClass;
       if(isT)cls+=' today-cell';
       const label=h.negative?((negRecords[s]&&negRecords[s][h.id])||0)+'':'';
-      row+=`<td class="wt-cell-wrap"><div class="${cls}">${done?(h.negative?label:'✓'):due?'':''}</div></td>`;
+      row+=`<td class="wt-cell-wrap"><div class="${cls}">${due?(done?(h.negative?label:'✓'):''):''}</div></td>`;
     });
     row+=`<td class="wt-badge">${isPerfect?`<span class="perfect">✓全</span>`:''}</td></tr>`;
     tbody.innerHTML+=row;
@@ -368,8 +372,11 @@ function buildWeekTable(){
   goals.filter(g=>inR(g,new Date())).forEach(g=>{
     let row=`<tr><td class="wt-name"><div class="wt-name-inner"><span class="wt-ico">${g.icon}</span><span class="wt-lbl">${g.name}</span></div></td>`;
     days.forEach(d=>{
-      const s=ds(d),isT=s===tds;
-      row+=`<td class="wt-cell-wrap"><div class="wt-cell${isT?' today-cell':''}"></div></td>`;
+      const s=ds(d),isT=s===tds,inRange=inR(g,d);
+      const delta=inRange?((goalRecords[s]&&goalRecords[s][g.id])||0):0;
+      const dayPct=delta>0&&g.total>0?Math.round(delta/g.total*100):0;
+      let cls='wt-cell'+(isT?' today-cell':'')+(delta>0?' done-c4':'');
+      row+=`<td class="wt-cell-wrap"><div class="${cls}">${delta>0?dayPct+'%':''}</div></td>`;
     });
     row+=`<td class="wt-badge"><span style="font-size:10px;font-weight:800;color:var(--peach)">${gpct(g)}%</span></td></tr>`;
     tbody.innerHTML+=row;
@@ -451,51 +458,85 @@ function buildHcal(){
   document.getElementById('hcalTitle').textContent=`${hcalY} 年 ${MTHS[hcalM]}`;
   const el=document.getElementById('hcalList');el.innerHTML='';
   const dim=new Date(hcalY,hcalM+1,0).getDate(),tds=td();
-  if(habits.length){
-    el.innerHTML+=`<div class="secdiv"><span class="seclbl hl">習慣</span><div class="secline hl"></div></div>`;
-    el.innerHTML+=`<div class="hcal-grid">`+habits.map((h,hi)=>{
+  const first=new Date(hcalY,hcalM,1).getDay();
+  function makeMiniCells(drawFn){
+    let cells=DTW.map(d=>`<div class="mini-caldow">${d}</div>`).join('');
+    for(let i=0;i<first;i++)cells+=`<div class="mini-calday mc-empty"></div>`;
+    for(let day=1;day<=dim;day++)cells+=drawFn(day);
+    return cells;
+  }
+  const posH=habits.filter(h=>!h.negative);
+  const negH=habits.filter(h=>h.negative);
+  if(posH.length){
+    el.innerHTML+=`<div class="secdiv"><span class="seclbl hl">習慣打卡</span><div class="secline hl"></div></div>`;
+    el.innerHTML+=`<div class="hcal-grid">`+posH.map((h,hi)=>{
       let hd=0,ht=0;
-      const first=new Date(hcalY,hcalM,1).getDay();
-      let cells=DTW.map(d=>`<div class="mini-caldow">${d}</div>`).join('');
-      for(let i=0;i<first;i++)cells+=`<div class="mini-calday mc-empty"></div>`;
-      for(let day=1;day<=dim;day++){
+      const cells=makeMiniCells(day=>{
         const d=new Date(hcalY,hcalM,day),s=ds(d);
         const isT=s===tds,due=isDue(h,d),done=isDone(h.id,s);
-        if(due)ht++;if(done)hd++;
+        if(due)ht++;if(due&&done)hd++;
         let cls='mini-calday';
-        if(isT)cls+=' mc-today';else if(done)cls+=' mc-done';
-        cells+=`<div class="${cls}">${day}</div>`;
-      }
+        if(!inR(h,d))cls+=' mc-empty';
+        else if(isT)cls+=' mc-today';
+        else if(done)cls+=' mc-done';
+        return `<div class="${cls}">${day}</div>`;
+      });
       const pct=ht>0?Math.round(hd/ht*100):0,col=SC[hi%5];
       return `<div class="hcal-mini">
-        <div class="hcal-mini-head">
-          <div class="hico ${h.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${h.icon}</div>
-          <div class="hcal-mini-name">${h.name}</div>
-          <div class="hcal-mini-pct" style="color:${col}">${h.negative?'節制':pct+'%'}</div>
-        </div>
-        <div class="hcal-mini-sub">${h.negative?'上限 '+h.limit+' 次/天':hd+'/'+ht+' 次'}</div>
-        ${h.negative?'':`<div class="mini-calgrid">${cells}</div>`}
-      </div>`;
+        <div class="hcal-mini-head"><div class="hico ${h.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${h.icon}</div><div class="hcal-mini-name">${h.name}</div><div class="hcal-mini-pct" style="color:${col}">${pct}%</div></div>
+        <div class="hcal-mini-sub">${hd}/${ht} 次</div>
+        <div class="mini-calgrid">${cells}</div></div>`;
+    }).join('')+`</div>`;
+  }
+  if(negH.length){
+    el.innerHTML+=`<div class="secdiv" style="margin-top:14px"><span class="seclbl hl">節制習慣</span><div class="secline hl"></div></div>`;
+    el.innerHTML+=`<div class="hcal-grid">`+negH.map((h,hi)=>{
+      let ctrl=0,tot2=0;
+      const cells=makeMiniCells(day=>{
+        const d=new Date(hcalY,hcalM,day),s=ds(d);
+        const isT=s===tds,inRange=inR(h,d);
+        if(!inRange)return `<div class="mini-calday mc-empty"></div>`;
+        tot2++;
+        const count=(negRecords[s]&&negRecords[s][h.id])||0;
+        const isOk=count<=(h.limit||0);
+        if(isOk)ctrl++;
+        let cls='mini-calday';
+        if(isT)cls+=' mc-today';
+        else if(count>0)cls+=isOk?' mc-neg-ok':' mc-neg-over';
+        return `<div class="${cls}">${day}</div>`;
+      });
+      const pct=tot2>0?Math.round(ctrl/tot2*100):100;
+      const col=pct>=70?'#6ecfa8':'#f08888';
+      return `<div class="hcal-mini">
+        <div class="hcal-mini-head"><div class="hico ${h.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${h.icon}</div><div class="hcal-mini-name">${h.name}</div><div class="hcal-mini-pct" style="color:${col}">${pct}%</div></div>
+        <div class="hcal-mini-sub">控制中 ${ctrl}/${tot2} 天</div>
+        <div class="mini-calgrid">${cells}</div></div>`;
     }).join('')+`</div>`;
   }
   const activeGoals=goals.filter(g=>inR(g,new Date(hcalY,hcalM,1)));
-  if(activeGoals.length||goals.length){
-    el.innerHTML+=`<div class="secdiv" style="margin-top:16px"><span class="seclbl gl">目標</span><div class="secline gl"></div></div>`;
+  if(goals.length){
+    el.innerHTML+=`<div class="secdiv" style="margin-top:14px"><span class="seclbl gl">目標</span><div class="secline gl"></div></div>`;
     if(activeGoals.length){
       el.innerHTML+=`<div class="hcal-grid">`+activeGoals.map((g,gi)=>{
         const pct=gpct(g),col=SC[gi%5];
+        const cells=makeMiniCells(day=>{
+          const d=new Date(hcalY,hcalM,day),s=ds(d);
+          const isT=s===tds,inRange=inR(g,d);
+          if(!inRange)return `<div class="mini-calday mc-empty"></div>`;
+          const delta=(goalRecords[s]&&goalRecords[s][g.id])||0;
+          let cls='mini-calday';
+          if(isT)cls+=' mc-today';
+          else if(delta>0)cls+=' mc-goal';
+          return `<div class="${cls}">${day}</div>`;
+        });
         return `<div class="hcal-mini">
-          <div class="hcal-mini-head">
-            <div class="hico ${g.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${g.icon}</div>
-            <div class="hcal-mini-name">${g.name}</div>
-            <div class="hcal-mini-pct" style="color:${col}">${pct}%</div>
-          </div>
+          <div class="hcal-mini-head"><div class="hico ${g.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${g.icon}</div><div class="hcal-mini-name">${g.name}</div><div class="hcal-mini-pct" style="color:${col}">${pct}%</div></div>
           <div class="hcal-mini-sub">${g.current||0} / ${g.total} ${g.unit||''}</div>
-          <div class="gbar-bg" style="margin-top:6px"><div class="gbar-fill" style="width:${pct}%"></div></div>
-        </div>`;
+          <div class="gbar-bg" style="margin-top:4px"><div class="gbar-fill" style="width:${pct}%"></div></div>
+          <div class="mini-calgrid" style="margin-top:6px">${cells}</div></div>`;
       }).join('')+`</div>`;
     }else{
-      el.innerHTML+=`<div class="empty" style="padding:12px 0"><div class="eico">🎯</div>還沒有目標</div>`;
+      el.innerHTML+=`<div class="empty" style="padding:12px 0"><div class="eico">🎯</div>還沒有進行中的目標</div>`;
     }
   }
 }
@@ -507,40 +548,59 @@ function buildYear(){
   const el=document.getElementById('yearList'),tds=td();
   const isLeap=y=>(y%4===0&&y%100!==0)||y%400===0;
   const tot=isLeap(yearY)?366:365,ys=new Date(yearY,0,1);
-  if(habits.length){
-    el.innerHTML=habits.map((h,hi)=>{
+  const posH2=habits.filter(h=>!h.negative);
+  const negH2=habits.filter(h=>h.negative);
+  if(posH2.length){
+    el.innerHTML=posH2.map((h,hi)=>{
       let hd=0,ht=0,cells='';
       for(let i=0;i<tot;i++){
         const d=addD(ys,i),s=ds(d);
         const isT=s===tds,due=isDue(h,d),done=isDone(h.id,s);
-        if(due)ht++;if(done)hd++;
-        cells+=`<div class="hmc${isT?' today-h':done?' done':''}" title="${s}"></div>`;
+        if(due)ht++;if(due&&done)hd++;
+        cells+=`<div class="hmc${isT?' today-h':due&&done?' done':''}" title="${s}"></div>`;
       }
       const pct=ht>0?Math.round(hd/ht*100):0,col=SC[hi%5];
       return `<div class="yhblock">
-        <div class="yhhead">
-          <div class="hico ${h.color}" style="width:30px;height:30px;font-size:15px;border-radius:8px;font-family:var(--fe)">${h.icon}</div>
-          <div class="yhname">${h.name}</div>
-          <div class="yhpct" style="color:${col}">${h.negative?'節制':pct+'%'}</div>
-        </div>
-        <div class="yhsub">${h.negative?'上限 '+h.limit+' 次/天':'已完成 '+hd+' 天 · 應完成 '+ht+' 天'}</div>
-        ${h.negative?'':`<div class="heatmap">${cells}</div>`}
-      </div>`;
+        <div class="yhhead"><div class="hico ${h.color}" style="width:30px;height:30px;font-size:15px;border-radius:8px;font-family:var(--fe)">${h.icon}</div><div class="yhname">${h.name}</div><div class="yhpct" style="color:${col}">${pct}%</div></div>
+        <div class="yhsub">已完成 ${hd} 天 · 應完成 ${ht} 天</div>
+        <div class="heatmap">${cells}</div></div>`;
     }).join('');
-  }else{el.innerHTML=`<div class="empty"><div class="eico">🌱</div>還沒有習慣</div>`;}
+  }else if(!negH2.length&&!goals.length){el.innerHTML=`<div class="empty"><div class="eico">🌱</div>還沒有習慣</div>`;}
+  if(negH2.length){
+    el.innerHTML+=`<div class="secdiv" style="margin-top:${posH2.length?16:0}px"><span class="seclbl hl">節制習慣</span><div class="secline hl"></div></div>`;
+    el.innerHTML+=negH2.map((h,hi)=>{
+      let ctrl=0,tot2=0,cells='';
+      for(let i=0;i<tot;i++){
+        const d=addD(ys,i),s=ds(d);
+        const isT=s===tds,inRange=inR(h,d);
+        if(inRange){tot2++;const count=(negRecords[s]&&negRecords[s][h.id])||0;const isOk=count<=(h.limit||0);if(isOk)ctrl++;}
+        const count2=inRange?(negRecords[s]&&negRecords[s][h.id])||0:0;
+        const isOk2=count2<=(h.limit||0);
+        cells+=`<div class="hmc${isT?' today-h':!inRange?'':count2>0?isOk2?' hmc-neg-ok':' hmc-neg-over':''}" title="${s}"></div>`;
+      }
+      const pct=tot2>0?Math.round(ctrl/tot2*100):100,col=pct>=70?'#6ecfa8':'#f08888';
+      return `<div class="yhblock">
+        <div class="yhhead"><div class="hico ${h.color}" style="width:30px;height:30px;font-size:15px;border-radius:8px;font-family:var(--fe)">${h.icon}</div><div class="yhname">${h.name}</div><div class="yhpct" style="color:${col}">${pct}%</div></div>
+        <div class="yhsub">節制習慣 · 控制中 ${ctrl}/${tot2} 天</div>
+        <div class="heatmap">${cells}</div></div>`;
+    }).join('');
+  }
   if(goals.length){
     el.innerHTML+=`<div class="secdiv" style="margin-top:16px"><span class="seclbl gl">目標</span><div class="secline gl"></div></div>`;
     el.innerHTML+=goals.map((g,gi)=>{
       const pct=gpct(g),col=SC[gi%5];
+      let cells='';
+      for(let i=0;i<tot;i++){
+        const d=addD(ys,i),s=ds(d);
+        const isT=s===tds,inRange=inR(g,d);
+        const delta=inRange?(goalRecords[s]&&goalRecords[s][g.id])||0:0;
+        cells+=`<div class="hmc${isT?' today-h':delta>0?' hmc-goal':''}" title="${s}"></div>`;
+      }
       return `<div class="yhblock">
-        <div class="yhhead">
-          <div class="hico ${g.color}" style="width:30px;height:30px;font-size:15px;border-radius:8px;font-family:var(--fe)">${g.icon}</div>
-          <div class="yhname">${g.name}</div>
-          <div class="yhpct" style="color:${col}">${pct}%</div>
-        </div>
+        <div class="yhhead"><div class="hico ${g.color}" style="width:30px;height:30px;font-size:15px;border-radius:8px;font-family:var(--fe)">${g.icon}</div><div class="yhname">${g.name}</div><div class="yhpct" style="color:${col}">${pct}%</div></div>
         <div class="yhsub">${g.current||0} / ${g.total} ${g.unit||''}${rTxt(g)?' · '+rTxt(g):''}</div>
         <div class="gbar-bg" style="margin-top:8px"><div class="gbar-fill" style="width:${pct}%"></div></div>
-      </div>`;
+        <div class="heatmap" style="margin-top:8px">${cells}</div></div>`;
     }).join('');
   }
 }
@@ -777,7 +837,7 @@ window.hcalPrev=hcalPrev;window.hcalNext=hcalNext;window.yearPrev=yearPrev;windo
 window.setMT=setMT;window.setMT2=setMT2;window.pickFreq=pickFreq;window.togDay=togDay;
 window.pickIco=pickIco;window.pickCol=pickCol;window.closeModal=closeModal;window.saveItem=saveItem;
 window.editItem=editItem;window.togH=togH;window.qSet=qSet;window.qAdd=qAdd;
-window.negInc=negInc;window.negDec=negDec;window.pickNFreq=pickNFreq;
+window.negInc=negInc;window.negInc2=negInc2;window.negDec=negDec;window.pickNFreq=pickNFreq;
 window.exportCSV=exportCSV;window.copyUID=copyUID;window.importUID=importUID;
 
 buildTopDate();
