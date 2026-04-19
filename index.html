@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="saveStatus" style="display:none;position:fixed;top:14px;right:14px;z-index:300;font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.15)"></div>
 <div class="cwrap">
   <div class="topbar">
     <div>
@@ -34,13 +35,21 @@
       <button class="week-nav" onclick="weekNext()">›</button>
     </div>
     <div class="week-strip" id="weekStrip"></div>
+
+    <!-- 補打卡 — 獨立在頂部 -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <button onclick="toggleRetro()" id="retroBtn" style="font-size:12px;font-weight:700;color:var(--coral);background:var(--pink-l);border:1px solid var(--pink-m);border-radius:99px;padding:6px 14px;cursor:pointer;white-space:nowrap">📅 補打卡</button>
+    </div>
+
+    <!-- 日期選擇列 -->
     <div id="datePickerRow" style="display:none;margin-bottom:12px;background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:12px;font-weight:700;color:var(--t2)">補打日期：</span>
-        <input type="date" id="retroDate" class="fi" style="flex:1;padding:7px 10px;font-size:13px" oninput="switchViewDate(this.value)">
+        <input type="date" id="retroDate" class="fi" style="flex:1;padding:7px 10px;font-size:16px" oninput="switchViewDate(this.value)">
         <button onclick="backToToday()" style="padding:7px 12px;border:none;border-radius:7px;background:var(--pink-l);color:var(--coral);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">回今日</button>
       </div>
     </div>
+
     <div class="prbox">
       <div class="prw">
         <svg class="prsvg" viewBox="0 0 54 54"><circle class="pr-bg" cx="27" cy="27" r="19"/><circle class="pr-fill" cx="27" cy="27" r="19" id="prRing"/></svg>
@@ -51,11 +60,18 @@
         <p id="prSub">開始你的第一個打卡！</p>
       </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
-      <div class="secdiv" style="flex:1;margin-right:10px"><span class="seclbl hl">習慣打卡</span><div class="secline hl"></div></div>
-      <button onclick="toggleRetro()" id="retroBtn" style="font-size:11px;font-weight:700;color:var(--coral);background:var(--pink-l);border:1px solid var(--pink-m);border-radius:99px;padding:4px 11px;cursor:pointer;white-space:nowrap;margin-top:2px">補打卡</button>
-    </div>
+
+    <!-- 習慣 -->
+    <div class="secdiv"><span class="seclbl hl">習慣</span><div class="secline hl"></div></div>
     <div id="today-h"></div>
+
+    <!-- 節制習慣 -->
+    <div id="today-n-section">
+      <div class="secdiv"><span class="seclbl hl">節制習慣</span><div class="secline hl"></div></div>
+      <div id="today-n"></div>
+    </div>
+
+    <!-- 目標 -->
     <div class="secdiv"><span class="seclbl gl">目標進度</span><div class="secline gl"></div></div>
     <div id="today-g"></div>
   </div>
@@ -68,7 +84,6 @@
       <button class="stab" id="stab-hcal" onclick="goSt('hcal')">習慣/目標</button>
       <button class="stab" id="stab-year" onclick="goSt('year')">年度</button>
     </div>
-    <!-- 本週 -->
     <div id="sub-week" class="subpage active">
       <div class="stgrid">
         <div class="stbox"><div class="stnum p" id="sw-r">0%</div><div class="stlbl">完成率</div></div>
@@ -80,9 +95,7 @@
         <div class="wt-title">本週打卡記錄</div>
         <div class="wt-scroll">
           <table class="wt">
-            <thead class="wt-head">
-              <tr id="wt-head-row"><th class="wt-name-h"></th></tr>
-            </thead>
+            <thead class="wt-head"><tr id="wt-head-row"><th class="wt-name-h"></th></tr></thead>
             <tbody id="wt-body"></tbody>
           </table>
         </div>
@@ -90,7 +103,6 @@
       <div class="chartbox"><div class="chartlbl">習慣完成詳情</div><div id="sw-hl"></div></div>
       <div class="chartbox"><div class="chartlbl">目標進度</div><div id="sw-gl"></div></div>
     </div>
-    <!-- 本月 -->
     <div id="sub-month" class="subpage">
       <div class="stgrid">
         <div class="stbox"><div class="stnum p" id="sm-r">0%</div><div class="stlbl">完成率</div></div>
@@ -113,7 +125,6 @@
       <div class="chartbox"><div class="chartlbl">習慣完成詳情</div><div id="sm-hl"></div></div>
       <div class="chartbox"><div class="chartlbl">目標進度</div><div id="sm-gl"></div></div>
     </div>
-    <!-- 習慣/目標 -->
     <div id="sub-hcal" class="subpage">
       <div class="calhead" style="margin-bottom:12px">
         <button class="calnav" onclick="hcalPrev()">‹</button>
@@ -122,7 +133,6 @@
       </div>
       <div id="hcalList"></div>
     </div>
-    <!-- 年度 -->
     <div id="sub-year" class="subpage">
       <div class="calhead" style="margin-bottom:12px">
         <button class="calnav" onclick="yearPrev()">‹</button>
@@ -137,9 +147,11 @@
   <div id="page-manage" class="page">
     <div class="mtoggle">
       <button class="mtbtn ah" id="mt-h" onclick="setMT('h')">✅ 習慣</button>
+      <button class="mtbtn" id="mt-n" onclick="setMT('n')">🔴 節制</button>
       <button class="mtbtn" id="mt-g" onclick="setMT('g')">🎯 目標</button>
     </div>
     <div id="m-hl"></div>
+    <div id="m-nl" style="display:none"></div>
     <div id="m-gl" style="display:none"></div>
     <div style="margin-top:28px;padding:16px 18px;background:var(--pink-l);border-radius:var(--r);border-left:3px solid var(--coral)">
       <div style="font-size:11px;font-weight:800;color:var(--coral);letter-spacing:1px;margin-bottom:6px">✨ 給自己的提醒</div>
@@ -148,11 +160,11 @@
       <div style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.7);border-radius:8px;display:flex;align-items:center;gap:8px">
         <span style="font-size:10px;color:var(--t2);font-weight:600">我的裝置ID：</span>
         <span id="displayUID" style="font-size:10px;color:var(--t2);font-family:monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-        <button onclick="copyUID()" style="font-size:10px;font-weight:700;color:var(--coral);background:transparent;border:none;cursor:pointer">複製</button>
+        <button onclick="copyUID()" style="font-size:12px;font-weight:700;color:var(--coral);background:transparent;border:none;cursor:pointer;touch-action:manipulation">複製</button>
       </div>
     </div>
-    <button onclick="exportCSV()" style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:14px;background:#edfbf4;color:#3a9a6a;font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(110,207,168,0.4)">📥 匯出打卡記錄（CSV）</button>
-    <button onclick="importUID()" style="width:100%;margin-top:8px;padding:13px;border:none;border-radius:14px;background:var(--sky-l);color:var(--sky);font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(128,200,232,0.4)">🔄 輸入 ID 切換裝置</button>
+    <button onclick="exportCSV()" style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:14px;background:#edfbf4;color:#3a9a6a;font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(110,207,168,0.4);touch-action:manipulation">📥 匯出打卡記錄（CSV）</button>
+    <button onclick="importUID()" style="width:100%;margin-top:8px;padding:13px;border:none;border-radius:14px;background:var(--sky-l);color:var(--sky);font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(128,200,232,0.4);touch-action:manipulation">🔄 輸入 ID 切換裝置</button>
   </div>
 </div>
 
@@ -170,10 +182,10 @@
     <input type="hidden" id="eId"><input type="hidden" id="eType">
     <div id="mTypeRow" class="mrow" style="flex-wrap:wrap;gap:5px">
       <div class="mrbtn active" data-mt="habit" onclick="setMT2('habit',this)">✅ 習慣打卡</div>
-      <div class="mrbtn" data-mt="negative" onclick="setMT2('negative',this)">🔴 次數限制</div>
+      <div class="mrbtn" data-mt="negative" onclick="setMT2('negative',this)">🔴 節制習慣</div>
       <div class="mrbtn" data-mt="goal" onclick="setMT2('goal',this)">🎯 目標進度</div>
     </div>
-    <div class="fg"><label class="fl">名稱</label><input class="fi" type="text" id="iName" placeholder="輸入名稱"></div>
+    <div class="fg"><label class="fl">名稱</label><input class="fi" type="text" id="iName" placeholder="輸入名稱" style="font-size:16px"></div>
     <div class="fg"><label class="fl">圖示</label><div class="igrid" id="icoGrid"></div></div>
     <div class="fg"><label class="fl">顏色</label><div class="crow" id="colRow"></div></div>
     <div id="hfields">
@@ -185,7 +197,7 @@
           <div class="fopt" data-freq="weekly-days" onclick="pickFreq(this)">每週固定某天</div>
           <div class="fopt" data-freq="monthly-n" onclick="pickFreq(this)">每月幾次</div>
         </div>
-        <div class="fsub" id="fs-weekly-n"><label class="fl" style="margin-top:9px">每週幾次</label><input class="fi" type="number" id="fWN" min="1" max="7" value="3"></div>
+        <div class="fsub" id="fs-weekly-n"><label class="fl" style="margin-top:9px">每週幾次</label><input class="fi" type="number" id="fWN" min="1" max="7" value="3" style="font-size:16px"></div>
         <div class="fsub" id="fs-weekly-days">
           <label class="fl" style="margin-top:9px">選擇星期</label>
           <div class="drow">
@@ -198,28 +210,27 @@
             <div class="dchip" data-d="0" onclick="togDay(this)">日</div>
           </div>
         </div>
-        <div class="fsub" id="fs-monthly-n"><label class="fl" style="margin-top:9px">每月幾次</label><input class="fi" type="number" id="fMN" min="1" max="31" value="4"></div>
+        <div class="fsub" id="fs-monthly-n"><label class="fl" style="margin-top:9px">每月幾次</label><input class="fi" type="number" id="fMN" min="1" max="31" value="4" style="font-size:16px"></div>
       </div>
     </div>
-    <!-- 次數限制欄位 -->
     <div id="nfields" style="display:none">
-      <div class="fg"><label class="fl">每日上限次數</label><input class="fi" type="number" id="nLimit" min="1" value="5" placeholder="例：5，超過此數即為超標"></div>
+      <div class="fg"><label class="fl">每日上限次數（超過即超標）</label><input class="fi" type="number" id="nLimit" min="1" value="5" style="font-size:16px"></div>
     </div>
     <div id="gfields" style="display:none">
       <div class="frow">
-        <div class="fg"><label class="fl">目標總量</label><input class="fi" type="number" id="gTotal" placeholder="例：10"></div>
-        <div class="fg"><label class="fl">單位</label><input class="fi" type="text" id="gUnit" placeholder="例：公斤"></div>
+        <div class="fg"><label class="fl">目標總量</label><input class="fi" type="number" id="gTotal" placeholder="例：10" style="font-size:16px"></div>
+        <div class="fg"><label class="fl">單位</label><input class="fi" type="text" id="gUnit" placeholder="例：公斤" style="font-size:16px"></div>
       </div>
-      <div class="fg"><label class="fl">目前已完成</label><input class="fi" type="number" id="gCur" value="0"></div>
+      <div class="fg"><label class="fl">目前已完成</label><input class="fi" type="number" id="gCur" value="0" style="font-size:16px"></div>
     </div>
     <div class="fg">
       <label class="fl">執行區間（選填）</label>
       <div class="frow">
-        <div><label class="fl">開始</label><input class="fi" type="date" id="dStart"></div>
-        <div><label class="fl">結束</label><input class="fi" type="date" id="dEnd"></div>
+        <div><label class="fl">開始</label><input class="fi" type="date" id="dStart" style="font-size:16px"></div>
+        <div><label class="fl">結束</label><input class="fi" type="date" id="dEnd" style="font-size:16px"></div>
       </div>
     </div>
-    <div class="fg"><label class="fl">備註（選填）</label><input class="fi" type="text" id="iNote" placeholder="說明"></div>
+    <div class="fg"><label class="fl">備註（選填）</label><input class="fi" type="text" id="iNote" placeholder="說明" style="font-size:16px"></div>
     <div class="mbtns">
       <button class="mbcancel" onclick="closeModal()">取消</button>
       <button class="mbsave" onclick="saveItem()">儲存</button>

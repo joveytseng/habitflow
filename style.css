@@ -295,10 +295,12 @@ input,button,select{font-family:var(--fn)}
 .brand-sub{font-size:12px;font-weight:700;color:var(--coral);letter-spacing:.5px;margin-top:2px}
 .brand-tag{font-size:10px;color:var(--t2);font-weight:500;margin-top:2px;line-height:1.5}
 
-/* ── 次數限制（負向習慣）── */
+/* ── 節制習慣 ── */
+button{touch-action:manipulation}
 .neg-counter{display:flex;align-items:center;gap:5px;flex-shrink:0}
-.neg-btn{width:28px;height:28px;border-radius:50%;border:none;background:var(--bg2);color:var(--t1);font-size:18px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:transform .1s}
+.neg-btn{width:36px;height:36px;border-radius:50%;border:none;background:var(--bg2);color:var(--t1);font-size:20px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:transform .1s;touch-action:manipulation;-webkit-touch-callout:none}
 .neg-btn:active{transform:scale(.88)}
+.mtbtn.an{border-color:var(--coral);color:var(--coral);background:var(--pink-l)}
 .neg-num{font-size:16px;font-weight:800;color:var(--t1);min-width:22px;text-align:center}
 .neg-num.over{color:var(--coral)}
 .neg-status{font-size:11px;font-weight:700;margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px}

@@ -69,13 +69,26 @@ function strk(id){
 }
 function gpct(g){if(!g.total)return 0;return Math.min(100,Math.round((g.current||0)/g.total*100))}
 
+function showSaveStatus(ok,msg){
+  const el=document.getElementById('saveStatus');
+  if(!el)return;
+  el.textContent=msg;
+  el.style.background=ok?'#6ecfa8':'#f08888';
+  el.style.color='#fff';
+  el.style.display='block';
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>{el.style.display='none';},ok?2000:5000);
+}
+
 async function save(){
   try{
     const userId=getUserId();
     await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords});
+    showSaveStatus(true,'✓ 已儲存');
   }catch(e){
     console.error('Firebase save error:',e);
-    toast('⚠️ 儲存失敗，請確認網路與 Firebase 設定');
+    showSaveStatus(false,'✗ 儲存失敗：'+e.code);
+    toast('⚠️ 儲存失敗，請檢查 Firebase 規則');
   }
 }
 
@@ -92,7 +105,7 @@ async function loadData(){
     }
   }catch(e){
     console.error('Firebase load error:',e);
-    toast('⚠️ 載入失敗，請重新整理頁面');
+    showSaveStatus(false,'✗ 載入失敗：'+e.code);
   }
   buildAll();
 }
@@ -102,7 +115,8 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 
 function buildTopDate(){
   const n=new Date();
-  document.getElementById('topdate').textContent=`${n.getFullYear()} 年 ${MTHS[n.getMonth()]} ${n.getDate()} 日 ${DTW[n.getDay()]}`;
+  const day=DTW[n.getDay()];
+  document.getElementById('topdate').textContent=`${n.getFullYear()} 年 ${MTHS[n.getMonth()]} ${n.getDate()} 日（${day}）`;
 }
 function buildWeek(){
   const now=new Date(),tds=td(),mon=monSt(addD(now,wkOff*7));
@@ -130,11 +144,11 @@ function toggleRetro(){
     const yest=addD(new Date(),-1);
     document.getElementById('retroDate').value=ds(yest);
     viewDate=ds(yest);
-    btn.textContent='收起';
+    btn.textContent='收起補打卡';
     buildToday();
   }else{
     row.style.display='none';
-    btn.textContent='補打卡';
+    btn.textContent='📅 補打卡';
     backToToday();
   }
 }
@@ -142,41 +156,32 @@ function switchViewDate(v){viewDate=v||null;buildToday();}
 function backToToday(){
   viewDate=null;
   document.getElementById('datePickerRow').style.display='none';
-  document.getElementById('retroBtn').textContent='補打卡';
+  document.getElementById('retroBtn').textContent='📅 補打卡';
   buildToday();
 }
 
-function buildToday(){buildTodayH();buildTodayG();updatePR()}
+function buildToday(){
+  buildTodayH();
+  buildTodayNeg();
+  buildTodayG();
+  updatePR();
+  // 沒有節制習慣就隱藏該區塊
+  const hasNeg=habits.some(h=>h.negative&&isDue(h,viewDate?new Date(viewDate+'T00:00:00'):new Date()));
+  document.getElementById('today-n-section').style.display=hasNeg?'block':'none';
+}
 
 function buildTodayH(){
   const el=document.getElementById('today-h');
   const targetDs=viewDate||td();
   const targetD=viewDate?new Date(viewDate+'T00:00:00'):new Date();
   const isRetro=!!viewDate&&viewDate!==td();
-  const due=habits.filter(h=>isDue(h,targetD));
-  if(!habits.length){el.innerHTML=`<div class="empty"><div class="eico">🌱</div>還沒有習慣<br>點右上角 ＋ 新增！</div>`;return}
-  if(!due.length){el.innerHTML=`<div class="empty" style="padding:12px 0"><div class="eico">☀️</div>這天沒有安排的習慣</div>`;return}
+  const due=habits.filter(h=>!h.negative&&isDue(h,targetD));
+  if(!habits.filter(h=>!h.negative).length){
+    el.innerHTML=`<div class="empty"><div class="eico">🌱</div>還沒有習慣<br>點右上角 ＋ 新增！</div>`;return;
+  }
+  if(!due.length){el.innerHTML=`<div class="empty" style="padding:12px 0"><div class="eico">☀️</div>這天沒有安排的習慣</div>`;return;}
   const retroNote=isRetro?`<div style="font-size:11px;color:var(--coral);font-weight:700;margin-bottom:8px;padding:6px 10px;background:var(--pink-l);border-radius:8px">📅 補打 ${viewDate} 的記錄</div>`:'';
   el.innerHTML=retroNote+due.map(h=>{
-    if(h.negative){
-      const count=(negRecords[targetDs]&&negRecords[targetDs][h.id])||0;
-      const isOk=count<=(h.limit||0);
-      const rl=rTxt(h);
-      return `<div class="hcard">
-        <div class="hico ${h.color}">${h.icon}</div>
-        <div class="hmeta">
-          <div class="hname">${h.name}</div>
-          <div class="hfreq">今日上限：${h.limit||0} 次</div>
-          ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
-          <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
-        </div>
-        <div class="neg-counter">
-          <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
-          <span class="neg-num ${count>(h.limit||0)?'over':''}">${count}</span>
-          <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
-        </div>
-      </div>`;
-    }
     const done=isDone(h.id,targetDs),st=strk(h.id),rl=rTxt(h);
     return `<div class="hcard${done?' done':''}" onclick="togH('${h.id}','${targetDs}')">
       <div class="hico ${h.color}">${h.icon}</div>
@@ -191,10 +196,39 @@ function buildTodayH(){
   }).join('');
 }
 
+function buildTodayNeg(){
+  const el=document.getElementById('today-n');
+  const targetDs=viewDate||td();
+  const targetD=viewDate?new Date(viewDate+'T00:00:00'):new Date();
+  const isRetro=!!viewDate&&viewDate!==td();
+  const due=habits.filter(h=>h.negative&&isDue(h,targetD));
+  if(!due.length){el.innerHTML='';return;}
+  const retroNote=isRetro?`<div style="font-size:11px;color:var(--coral);font-weight:700;margin-bottom:8px;padding:6px 10px;background:var(--pink-l);border-radius:8px">📅 補打 ${viewDate} 的記錄</div>`:'';
+  el.innerHTML=retroNote+due.map(h=>{
+    const count=(negRecords[targetDs]&&negRecords[targetDs][h.id])||0;
+    const isOk=count<=(h.limit||0);
+    const rl=rTxt(h);
+    return `<div class="hcard">
+      <div class="hico ${h.color}">${h.icon}</div>
+      <div class="hmeta">
+        <div class="hname">${h.name}</div>
+        <div class="hfreq">今日上限：${h.limit||0} 次</div>
+        ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
+        <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
+      </div>
+      <div class="neg-counter">
+        <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
+        <span class="neg-num ${count>(h.limit||0)?'over':''}">${count}</span>
+        <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function buildTodayG(){
   const el=document.getElementById('today-g'),now=new Date(),active=goals.filter(g=>inR(g,now));
-  if(!goals.length){el.innerHTML=`<div class="empty"><div class="eico">🎯</div>還沒有目標<br>點右上角 ＋ 新增！</div>`;return}
-  if(!active.length){el.innerHTML=`<div class="empty" style="padding:12px 0"><div class="eico">✅</div>目前沒有進行中的目標</div>`;return}
+  if(!goals.length){el.innerHTML=`<div class="empty"><div class="eico">🎯</div>還沒有目標<br>點右上角 ＋ 新增！</div>`;return;}
+  if(!active.length){el.innerHTML=`<div class="empty" style="padding:12px 0"><div class="eico">✅</div>目前沒有進行中的目標</div>`;return;}
   el.innerHTML=active.map(g=>{
     const pct=gpct(g),done=pct>=100,rl=rTxt(g);
     return `<div class="gcard${done?' complete':''}">
@@ -205,9 +239,9 @@ function buildTodayG(){
       </div>
       <div class="gbar-bg"><div class="gbar-fill" style="width:${pct}%"></div></div>
       <div class="ginrow">
-        <input class="gmini" type="number" id="gs_${g.id}" placeholder="設定目前數字">
+        <input class="gmini" type="number" id="gs_${g.id}" placeholder="設定目前數字" style="font-size:16px">
         <button class="gbset" onclick="qSet('${g.id}')">設定</button>
-        <input class="gmini" type="number" id="ga_${g.id}" placeholder="+增加">
+        <input class="gmini" type="number" id="ga_${g.id}" placeholder="+增加" style="font-size:16px">
         <button class="gbadd" onclick="qAdd('${g.id}')">＋加</button>
       </div>
     </div>`;
@@ -218,16 +252,15 @@ function negInc(id,targetDs){
   if(!targetDs)targetDs=td();
   if(!negRecords[targetDs])negRecords[targetDs]={};
   negRecords[targetDs][id]=(negRecords[targetDs][id]||0)+1;
-  save();buildTodayH();updatePR();
+  save();buildTodayNeg();updatePR();
 }
 function negDec(id,targetDs){
   if(!targetDs)targetDs=td();
   if(!negRecords[targetDs])negRecords[targetDs]={};
   const cur=negRecords[targetDs][id]||0;
   if(cur>0)negRecords[targetDs][id]=cur-1;
-  save();buildTodayH();updatePR();
+  save();buildTodayNeg();updatePR();
 }
-
 function togH(id,targetDs){
   if(!targetDs)targetDs=td();
   if(!records[targetDs])records[targetDs]=[];
@@ -252,7 +285,7 @@ function updatePR(){
   prTxt.style.fontSize=txt.length>4?'9px':'12px';
   const label=viewDate&&viewDate!==td()?`${viewDate} 完成`:'今天完成';
   document.getElementById('prTitle').textContent=`${label} ${done} 項習慣`;
-  document.getElementById('prSub').textContent=total-done>0?`還有 ${total-done} 項等你打卡 💪`:done>0?'全部完成！🎉':'開始你的第一個打卡！';
+  document.getElementById('prSub').textContent=total-done>0?`還有 ${total-done} 項等你 💪`:done>0?'全部完成！🎉':'開始你的第一個打卡！';
 }
 
 function goSt(tab){
@@ -277,8 +310,7 @@ function buildWeekTable(){
     headRow.innerHTML+=`<th style="${isT?'color:var(--coral);':''}">${WL[i]}<br><span style="font-size:9px;font-weight:600;color:var(--t3)">${d.getDate()}</span></th>`;
   });
   headRow.innerHTML+='<th></th>';
-  const tbody=document.getElementById('wt-body');
-  tbody.innerHTML='';
+  const tbody=document.getElementById('wt-body');tbody.innerHTML='';
   if(!habits.length){tbody.innerHTML=`<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--t2);font-size:13px;font-weight:600">還沒有習慣</td></tr>`;return;}
   habits.forEach(h=>{
     const doneDays=days.filter(d=>isDone(h.id,ds(d))).length;
@@ -291,7 +323,8 @@ function buildWeekTable(){
       let cls='wt-cell';
       if(done)cls+=' '+doneClass;
       if(isT)cls+=' today-cell';
-      row+=`<td class="wt-cell-wrap"><div class="${cls}">${done?'✓':due?'':''}</div></td>`;
+      const label=h.negative?((negRecords[s]&&negRecords[s][h.id])||0)+'':'';
+      row+=`<td class="wt-cell-wrap"><div class="${cls}">${done?(h.negative?label:'✓'):due?'':''}</div></td>`;
     });
     row+=`<td class="wt-badge">${isPerfect?`<span class="perfect">✓全</span>`:''}</td></tr>`;
     tbody.innerHTML+=row;
@@ -302,8 +335,7 @@ function buildWeekTable(){
       const s=ds(d),isT=s===tds;
       row+=`<td class="wt-cell-wrap"><div class="wt-cell${isT?' today-cell':''}"></div></td>`;
     });
-    const pct=gpct(g);
-    row+=`<td class="wt-badge"><span style="font-size:10px;font-weight:800;color:var(--peach)">${pct}%</span></td></tr>`;
+    row+=`<td class="wt-badge"><span style="font-size:10px;font-weight:800;color:var(--peach)">${gpct(g)}%</span></td></tr>`;
     tbody.innerHTML+=row;
   });
 }
@@ -336,7 +368,8 @@ function buildWeekSt(){
   document.getElementById('sw-r').innerHTML=`${rate}<span style="font-size:15px">%</span>`;
   document.getElementById('sw-c').textContent=count;
   document.getElementById('sw-t').textContent=habits.length+goals.length;
-  document.getElementById('sw-s').textContent=habits.filter(h=>!h.negative).length?Math.max(...habits.filter(h=>!h.negative).map(h=>strk(h.id))):0;
+  const posH=habits.filter(h=>!h.negative);
+  document.getElementById('sw-s').textContent=posH.length?Math.max(...posH.map(h=>strk(h.id))):0;
   buildWeekTable();buildHRows(dates,'sw-hl');buildGRows('sw-gl');
 }
 function buildMonthSt(){
@@ -344,7 +377,8 @@ function buildMonthSt(){
   document.getElementById('sm-r').innerHTML=`${rate}<span style="font-size:15px">%</span>`;
   document.getElementById('sm-c').textContent=count;
   document.getElementById('sm-t').textContent=habits.length+goals.length;
-  document.getElementById('sm-s').textContent=habits.filter(h=>!h.negative).length?Math.max(...habits.filter(h=>!h.negative).map(h=>strk(h.id))):0;
+  const posH=habits.filter(h=>!h.negative);
+  document.getElementById('sm-s').textContent=posH.length?Math.max(...posH.map(h=>strk(h.id))):0;
   renderCal();buildHRows(dates,'sm-hl');buildGRows('sm-gl');
 }
 function renderCal(){
@@ -367,11 +401,8 @@ function calNext(){calM++;if(calM>11){calM=0;calY++;}renderCal()}
 
 function buildHcal(){
   document.getElementById('hcalTitle').textContent=`${hcalY} 年 ${MTHS[hcalM]}`;
-  const el=document.getElementById('hcalList');
-  el.innerHTML='';
+  const el=document.getElementById('hcalList');el.innerHTML='';
   const dim=new Date(hcalY,hcalM+1,0).getDate(),tds=td();
-
-  // 習慣區塊
   if(habits.length){
     el.innerHTML+=`<div class="secdiv"><span class="seclbl hl">習慣</span><div class="secline hl"></div></div>`;
     el.innerHTML+=`<div class="hcal-grid">`+habits.map((h,hi)=>{
@@ -392,35 +423,32 @@ function buildHcal(){
         <div class="hcal-mini-head">
           <div class="hico ${h.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${h.icon}</div>
           <div class="hcal-mini-name">${h.name}</div>
-          <div class="hcal-mini-pct" style="color:${col}">${h.negative?'次數':pct+'%'}</div>
+          <div class="hcal-mini-pct" style="color:${col}">${h.negative?'節制':pct+'%'}</div>
         </div>
         <div class="hcal-mini-sub">${h.negative?'上限 '+h.limit+' 次/天':hd+'/'+ht+' 次'}</div>
         ${h.negative?'':`<div class="mini-calgrid">${cells}</div>`}
       </div>`;
     }).join('')+`</div>`;
-  }else{
-    el.innerHTML+=`<div class="empty"><div class="eico">🌱</div>還沒有習慣</div>`;
   }
-
-  // 目標區塊
   const activeGoals=goals.filter(g=>inR(g,new Date(hcalY,hcalM,1)));
-  if(activeGoals.length){
+  if(activeGoals.length||goals.length){
     el.innerHTML+=`<div class="secdiv" style="margin-top:16px"><span class="seclbl gl">目標</span><div class="secline gl"></div></div>`;
-    el.innerHTML+=`<div class="hcal-grid">`+activeGoals.map((g,gi)=>{
-      const pct=gpct(g),col=SC[gi%5];
-      return `<div class="hcal-mini">
-        <div class="hcal-mini-head">
-          <div class="hico ${g.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${g.icon}</div>
-          <div class="hcal-mini-name">${g.name}</div>
-          <div class="hcal-mini-pct" style="color:${col}">${pct}%</div>
-        </div>
-        <div class="hcal-mini-sub">${g.current||0} / ${g.total} ${g.unit||''}</div>
-        <div class="gbar-bg" style="margin-top:6px"><div class="gbar-fill" style="width:${pct}%"></div></div>
-      </div>`;
-    }).join('')+`</div>`;
-  }else if(!goals.length){
-    el.innerHTML+=`<div class="secdiv" style="margin-top:16px"><span class="seclbl gl">目標</span><div class="secline gl"></div></div>`;
-    el.innerHTML+=`<div class="empty" style="padding:12px 0"><div class="eico">🎯</div>還沒有目標</div>`;
+    if(activeGoals.length){
+      el.innerHTML+=`<div class="hcal-grid">`+activeGoals.map((g,gi)=>{
+        const pct=gpct(g),col=SC[gi%5];
+        return `<div class="hcal-mini">
+          <div class="hcal-mini-head">
+            <div class="hico ${g.color}" style="width:28px;height:28px;font-size:14px;border-radius:7px;font-family:var(--fe)">${g.icon}</div>
+            <div class="hcal-mini-name">${g.name}</div>
+            <div class="hcal-mini-pct" style="color:${col}">${pct}%</div>
+          </div>
+          <div class="hcal-mini-sub">${g.current||0} / ${g.total} ${g.unit||''}</div>
+          <div class="gbar-bg" style="margin-top:6px"><div class="gbar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('')+`</div>`;
+    }else{
+      el.innerHTML+=`<div class="empty" style="padding:12px 0"><div class="eico">🎯</div>還沒有目標</div>`;
+    }
   }
 }
 function hcalPrev(){hcalM--;if(hcalM<0){hcalM=11;hcalY--;}buildHcal()}
@@ -431,8 +459,6 @@ function buildYear(){
   const el=document.getElementById('yearList'),tds=td();
   const isLeap=y=>(y%4===0&&y%100!==0)||y%400===0;
   const tot=isLeap(yearY)?366:365,ys=new Date(yearY,0,1);
-
-  // 習慣熱圖
   if(habits.length){
     el.innerHTML=habits.map((h,hi)=>{
       let hd=0,ht=0,cells='';
@@ -447,17 +473,13 @@ function buildYear(){
         <div class="yhhead">
           <div class="hico ${h.color}" style="width:30px;height:30px;font-size:15px;border-radius:8px;font-family:var(--fe)">${h.icon}</div>
           <div class="yhname">${h.name}</div>
-          <div class="yhpct" style="color:${col}">${h.negative?'次數限制':pct+'%'}</div>
+          <div class="yhpct" style="color:${col}">${h.negative?'節制':pct+'%'}</div>
         </div>
         <div class="yhsub">${h.negative?'上限 '+h.limit+' 次/天':'已完成 '+hd+' 天 · 應完成 '+ht+' 天'}</div>
         ${h.negative?'':`<div class="heatmap">${cells}</div>`}
       </div>`;
     }).join('');
-  }else{
-    el.innerHTML=`<div class="empty"><div class="eico">🌱</div>還沒有習慣</div>`;
-  }
-
-  // 目標年度
+  }else{el.innerHTML=`<div class="empty"><div class="eico">🌱</div>還沒有習慣</div>`;}
   if(goals.length){
     el.innerHTML+=`<div class="secdiv" style="margin-top:16px"><span class="seclbl gl">目標</span><div class="secline gl"></div></div>`;
     el.innerHTML+=goals.map((g,gi)=>{
@@ -480,20 +502,36 @@ function yearNext(){yearY++;buildYear()}
 function setMT(t){
   manT=t;
   document.getElementById('mt-h').className='mtbtn'+(t==='h'?' ah':'');
+  document.getElementById('mt-n').className='mtbtn'+(t==='n'?' an':'');
   document.getElementById('mt-g').className='mtbtn'+(t==='g'?' ag':'');
   document.getElementById('m-hl').style.display=t==='h'?'block':'none';
+  document.getElementById('m-nl').style.display=t==='n'?'block':'none';
   document.getElementById('m-gl').style.display=t==='g'?'block':'none';
 }
+
 function buildManage(){
   document.getElementById('displayUID').textContent=getUserId();
-  document.getElementById('m-hl').innerHTML=!habits.length
+  const posH=habits.filter(h=>!h.negative);
+  const negH=habits.filter(h=>h.negative);
+  document.getElementById('m-hl').innerHTML=!posH.length
     ?`<div class="empty"><div class="eico">🌱</div>還沒有習慣</div>`
-    :habits.map(h=>`
+    :posH.map(h=>`
     <div class="swipe-wrap" id="sw_${h.id}">
       <div class="swipe-del-bg">🗑️<br>刪除</div>
       <div class="mitem" data-type="habit" data-id="${h.id}">
         <div class="hico ${h.color}" style="font-family:var(--fe)">${h.icon}</div>
-        <div class="minfo"><div class="mname">${h.name}</div><div class="msub">${h.negative?`🔴 次數限制・上限 ${h.limit} 次/天`:fTxt(h.freq)}${rTxt(h)?' · '+rTxt(h):''}</div></div>
+        <div class="minfo"><div class="mname">${h.name}</div><div class="msub">${fTxt(h.freq)}${rTxt(h)?' · '+rTxt(h):''}</div></div>
+        <div class="macts"><button class="abtn aedit" onclick="editItem('habit','${h.id}')">✏️</button></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('m-nl').innerHTML=!negH.length
+    ?`<div class="empty"><div class="eico">🔴</div>還沒有節制習慣</div>`
+    :negH.map(h=>`
+    <div class="swipe-wrap" id="sw_${h.id}">
+      <div class="swipe-del-bg">🗑️<br>刪除</div>
+      <div class="mitem" data-type="habit" data-id="${h.id}">
+        <div class="hico ${h.color}" style="font-family:var(--fe)">${h.icon}</div>
+        <div class="minfo"><div class="mname">${h.name}</div><div class="msub">節制習慣・上限 ${h.limit} 次/天${rTxt(h)?' · '+rTxt(h):''}</div></div>
         <div class="macts"><button class="abtn aedit" onclick="editItem('habit','${h.id}')">✏️</button></div>
       </div>
     </div>`).join('');
@@ -532,7 +570,7 @@ function bindSwipe(){
         const wrap=document.getElementById('sw_'+id);
         if(wrap){
           const btn=document.createElement('button');
-          btn.style.cssText='position:absolute;right:0;top:0;bottom:0;width:80px;background:#e05050;color:#fff;border:none;font-size:12px;font-weight:800;cursor:pointer;z-index:2;border-radius:0 var(--r) var(--r) 0';
+          btn.style.cssText='position:absolute;right:0;top:0;bottom:0;width:80px;background:#e05050;color:#fff;border:none;font-size:12px;font-weight:800;cursor:pointer;z-index:2;border-radius:0 var(--r) var(--r) 0;touch-action:manipulation';
           btn.textContent='確認刪除';
           btn.onclick=()=>{
             if(type==='habit')habits=habits.filter(h=>h.id!==id);
@@ -564,7 +602,7 @@ function setMT2(t,el){
 
 function openAdd(){
   const onManage=document.getElementById('page-manage').classList.contains('active');
-  const defType=onManage&&manT==='g'?'goal':'habit';
+  const defType=onManage&&manT==='g'?'goal':onManage&&manT==='n'?'negative':'habit';
   document.getElementById('mTitle').textContent='新增項目';
   document.getElementById('eId').value='';document.getElementById('eType').value='';
   document.getElementById('iName').value='';document.getElementById('iNote').value='';
@@ -577,7 +615,7 @@ function openAdd(){
   document.querySelectorAll('.mrbtn').forEach(e=>e.classList.remove('active'));
   document.querySelector(`.mrbtn[data-mt="${defType}"]`).classList.add('active');
   document.getElementById('hfields').style.display=defType==='habit'?'block':'none';
-  document.getElementById('nfields').style.display='none';
+  document.getElementById('nfields').style.display=defType==='negative'?'block':'none';
   document.getElementById('gfields').style.display=defType==='goal'?'block':'none';
   document.querySelectorAll('.fopt').forEach(e=>e.classList.remove('sel'));
   document.querySelector('.fopt[data-freq="daily"]').classList.add('sel');
@@ -616,7 +654,8 @@ function closeModal(){document.getElementById('modal').classList.remove('open')}
 function saveItem(){
   const name=document.getElementById('iName').value.trim();if(!name){toast('請輸入名稱');return}
   const eId=document.getElementById('eId').value,eType=document.getElementById('eType').value;
-  const type=eId?(habits.find(h=>h.id===eId)?.negative?'negative':eType):mType;
+  const existH=habits.find(h=>h.id===eId);
+  const type=eId?(existH?.negative?'negative':eType):mType;
   const dateStart=document.getElementById('dStart').value||null,dateEnd=document.getElementById('dEnd').value||null;
   const note=document.getElementById('iNote').value.trim()||null;
   if(type==='negative'){
@@ -653,12 +692,12 @@ function buildAll(){buildToday();buildWeek();buildManage()}
 function exportCSV(){
   const headers=['日期',...habits.map(h=>h.name)];
   const rows=[headers.join(',')];
-  const allDates=Object.keys(records).sort();
+  const allDates=[...new Set([...Object.keys(records),...Object.keys(negRecords)])].sort();
   allDates.forEach(date=>{
     const row=[date];
     habits.forEach(h=>{
-      if(h.negative){row.push((negRecords[date]&&negRecords[date][h.id])||0);}
-      else{row.push((records[date]||[]).includes(h.id)?'✓':'');}
+      if(h.negative)row.push((negRecords[date]&&negRecords[date][h.id])||0);
+      else row.push((records[date]||[]).includes(h.id)?'✓':'');
     });
     rows.push(row.join(','));
   });
@@ -678,7 +717,6 @@ function importUID(){
   }
 }
 
-// Expose to window
 window.openAdd=openAdd;window.goTab=goTab;window.weekPrev=weekPrev;window.weekNext=weekNext;
 window.switchViewDate=switchViewDate;window.backToToday=backToToday;window.toggleRetro=toggleRetro;
 window.goSt=goSt;window.calPrev=calPrev;window.calNext=calNext;
@@ -689,7 +727,6 @@ window.editItem=editItem;window.togH=togH;window.qSet=qSet;window.qAdd=qAdd;
 window.negInc=negInc;window.negDec=negDec;
 window.exportCSV=exportCSV;window.copyUID=copyUID;window.importUID=importUID;
 
-// Init
 buildTopDate();
 const _n=new Date();
 calY=_n.getFullYear();calM=_n.getMonth();
