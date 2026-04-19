@@ -270,15 +270,15 @@ function buildTodayNeg(){
         <div class="hname">${h.name}</div>
         <div class="hfreq">${pl}上限：${limit} 次　<span style="font-weight:800;color:${isOk?'var(--sage)':'var(--coral)'}">${periodCount}/${limit}</span></div>
         ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
-        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-          <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
-          <button onclick="togNeg('${h.id}','${targetDs}')" style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid ${isDoneToday?'var(--sage)':'var(--border)'};background:${isDoneToday?'var(--sage)':'transparent'};color:${isDoneToday?'#fff':'var(--t2)'}">${isDoneToday?'✓ 打卡':'打卡'}</button>
-        </div>
+        <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
       </div>
-      <div class="neg-counter">
-        <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
-        <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
-        <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0">
+        <div class="neg-counter">
+          <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
+          <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
+          <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
+        </div>
+        <button onclick="togNeg('${h.id}','${targetDs}')" style="padding:6px 12px;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${isDoneToday?'var(--sage)':'var(--border)'};background:${isDoneToday?'var(--sage)':'transparent'};color:${isDoneToday?'#fff':'var(--t2)'}">${isDoneToday?'✓ 節制成功':'節制成功<br>請按我打卡'}</button>
       </div>
     </div>`;
   }).join('');
