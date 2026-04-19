@@ -264,22 +264,22 @@ function buildTodayNeg(){
     const isDoneToday=(records[targetDs]||[]).includes(h.id);
     const pl=negPeriodLabel(h);
     const rl=rTxt(h);
-    return `<div style="margin-bottom:10px">
-      <div class="hcard" style="margin-bottom:0">
-        <div class="hico ${h.color}">${h.icon}</div>
-        <div class="hmeta">
-          <div class="hname">${h.name}</div>
-          <div class="hfreq">${pl}上限：${limit} 次　<span style="font-weight:800;color:${isOk?'var(--sage)':'var(--coral)'}">${periodCount}/${limit}</span></div>
-          ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
+    return `<div class="hcard">
+      <div class="hico ${h.color}">${h.icon}</div>
+      <div class="hmeta">
+        <div class="hname">${h.name}</div>
+        <div class="hfreq">${pl}上限：${limit} 次　<span style="font-weight:800;color:${isOk?'var(--sage)':'var(--coral)'}">${periodCount}/${limit}</span></div>
+        ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
           <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
-        </div>
-        <div class="neg-counter">
-          <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
-          <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
-          <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
+          <button onclick="togNeg('${h.id}','${targetDs}')" style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid ${isDoneToday?'var(--sage)':'var(--border)'};background:${isDoneToday?'var(--sage)':'transparent'};color:${isDoneToday?'#fff':'var(--t2)'}">${isDoneToday?'✓ 打卡':'打卡'}</button>
         </div>
       </div>
-      <button onclick="togNeg('${h.id}','${targetDs}')" style="width:100%;padding:11px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;border:none;${isDoneToday?'background:var(--sage);color:#fff':'background:var(--bg);color:var(--t2);border:1.5px solid var(--border)'}">${isDoneToday?'✓ 本日達成':'本日達成'}</button>
+      <div class="neg-counter">
+        <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
+        <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
+        <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
+      </div>
     </div>`;
   }).join('');
 }
