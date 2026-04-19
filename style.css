@@ -290,3 +290,17 @@ input,button,select{font-family:var(--fn)}
 
 .empty{text-align:center;padding:30px 16px;color:var(--t2);font-size:14px;font-weight:600;line-height:1.8}
 .eico{font-size:36px;margin-bottom:8px;font-family:var(--fe)}
+
+/* ── 品牌副標 ── */
+.brand-sub{font-size:12px;font-weight:700;color:var(--coral);letter-spacing:.5px;margin-top:2px}
+.brand-tag{font-size:10px;color:var(--t2);font-weight:500;margin-top:2px;line-height:1.5}
+
+/* ── 次數限制（負向習慣）── */
+.neg-counter{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.neg-btn{width:28px;height:28px;border-radius:50%;border:none;background:var(--bg2);color:var(--t1);font-size:18px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:transform .1s}
+.neg-btn:active{transform:scale(.88)}
+.neg-num{font-size:16px;font-weight:800;color:var(--t1);min-width:22px;text-align:center}
+.neg-num.over{color:var(--coral)}
+.neg-status{font-size:11px;font-weight:700;margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px}
+.neg-status.ok{background:var(--sage-l);color:var(--sage)}
+.neg-status.over{background:var(--pink-l);color:var(--coral)}

@@ -10,7 +10,11 @@
 <body>
 <div class="cwrap">
   <div class="topbar">
-    <div class="brand">HABIT<span>FLOW</span></div>
+    <div>
+      <div class="brand">HABIT<span>FLOW</span></div>
+      <div class="brand-sub">HabitFlow｜習慣流</div>
+      <div class="brand-tag">當行動進入流，改變就不需要意志力。</div>
+    </div>
     <div class="top-right">
       <div class="topdate" id="topdate"></div>
       <button class="add-btn" onclick="openAdd()">＋</button>
@@ -30,7 +34,6 @@
       <button class="week-nav" onclick="weekNext()">›</button>
     </div>
     <div class="week-strip" id="weekStrip"></div>
-    <!-- 日期選擇列 -->
     <div id="datePickerRow" style="display:none;margin-bottom:12px;background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:12px;font-weight:700;color:var(--t2)">補打日期：</span>
@@ -62,7 +65,7 @@
     <div class="stabs">
       <button class="stab active" id="stab-week" onclick="goSt('week')">本週</button>
       <button class="stab" id="stab-month" onclick="goSt('month')">本月</button>
-      <button class="stab" id="stab-hcal" onclick="goSt('hcal')">各習慣</button>
+      <button class="stab" id="stab-hcal" onclick="goSt('hcal')">習慣/目標</button>
       <button class="stab" id="stab-year" onclick="goSt('year')">年度</button>
     </div>
     <!-- 本週 -->
@@ -73,7 +76,6 @@
         <div class="stbox"><div class="stnum p" id="sw-s">0</div><div class="stlbl">最長連續天</div></div>
         <div class="stbox"><div class="stnum g" id="sw-t">0</div><div class="stlbl">習慣+目標</div></div>
       </div>
-      <!-- 週報表格 -->
       <div class="week-table-wrap">
         <div class="wt-title">本週打卡記錄</div>
         <div class="wt-scroll">
@@ -109,15 +111,16 @@
         </div>
       </div>
       <div class="chartbox"><div class="chartlbl">習慣完成詳情</div><div id="sm-hl"></div></div>
+      <div class="chartbox"><div class="chartlbl">目標進度</div><div id="sm-gl"></div></div>
     </div>
-    <!-- 各習慣 -->
+    <!-- 習慣/目標 -->
     <div id="sub-hcal" class="subpage">
       <div class="calhead" style="margin-bottom:12px">
         <button class="calnav" onclick="hcalPrev()">‹</button>
         <div class="caltitle" id="hcalTitle"></div>
         <button class="calnav" onclick="hcalNext()">›</button>
       </div>
-      <div class="hcal-grid" id="hcalList"></div>
+      <div id="hcalList"></div>
     </div>
     <!-- 年度 -->
     <div id="sub-year" class="subpage">
@@ -138,7 +141,6 @@
     </div>
     <div id="m-hl"></div>
     <div id="m-gl" style="display:none"></div>
-    <!-- 格言 -->
     <div style="margin-top:28px;padding:16px 18px;background:var(--pink-l);border-radius:var(--r);border-left:3px solid var(--coral)">
       <div style="font-size:11px;font-weight:800;color:var(--coral);letter-spacing:1px;margin-bottom:6px">✨ 給自己的提醒</div>
       <div style="font-size:13px;font-weight:600;color:var(--t1);line-height:1.7">算算看，全部加起來會花你一天／週多少時間？</div>
@@ -166,8 +168,9 @@
   <div class="modal">
     <div class="mtitle" id="mTitle">新增項目</div>
     <input type="hidden" id="eId"><input type="hidden" id="eType">
-    <div id="mTypeRow" class="mrow">
+    <div id="mTypeRow" class="mrow" style="flex-wrap:wrap;gap:5px">
       <div class="mrbtn active" data-mt="habit" onclick="setMT2('habit',this)">✅ 習慣打卡</div>
+      <div class="mrbtn" data-mt="negative" onclick="setMT2('negative',this)">🔴 次數限制</div>
       <div class="mrbtn" data-mt="goal" onclick="setMT2('goal',this)">🎯 目標進度</div>
     </div>
     <div class="fg"><label class="fl">名稱</label><input class="fi" type="text" id="iName" placeholder="輸入名稱"></div>
@@ -197,6 +200,10 @@
         </div>
         <div class="fsub" id="fs-monthly-n"><label class="fl" style="margin-top:9px">每月幾次</label><input class="fi" type="number" id="fMN" min="1" max="31" value="4"></div>
       </div>
+    </div>
+    <!-- 次數限制欄位 -->
+    <div id="nfields" style="display:none">
+      <div class="fg"><label class="fl">每日上限次數</label><input class="fi" type="number" id="nLimit" min="1" value="5" placeholder="例：5，超過此數即為超標"></div>
     </div>
     <div id="gfields" style="display:none">
       <div class="frow">
