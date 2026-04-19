@@ -144,18 +144,18 @@ input,button,select{font-family:var(--fn)}
 /* ── 週報表格 ── */
 .week-table-wrap{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
 .wt-title{font-size:12px;font-weight:800;color:var(--t2);margin-bottom:12px;letter-spacing:.5px}
-.wt-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.wt-scroll{overflow:hidden}
 .wt{width:100%;border-collapse:separate;border-spacing:0}
-.wt-head th{font-size:10px;font-weight:800;color:var(--t2);text-align:center;padding:0 2px 6px}
+.wt-head th{font-size:10px;font-weight:800;color:var(--t2);text-align:center;padding:0 1px 6px}
 .wt-head .wt-name-h{text-align:left;padding-left:0}
 .wt-row{margin-bottom:4px}
-.wt-row td{padding:2px 2px}
-.wt-name{text-align:left;padding-right:6px;min-width:72px;max-width:80px}
-.wt-name-inner{display:flex;align-items:center;gap:5px;white-space:nowrap}
-.wt-ico{font-size:14px;font-family:var(--fe);flex-shrink:0}
-.wt-lbl{font-size:12px;font-weight:700;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:52px}
-.wt-cell-wrap{text-align:center;padding:2px}
-.wt-cell{width:28px;height:28px;border-radius:7px;background:var(--bg2);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.wt-row td{padding:2px 1px}
+.wt-name{text-align:left;padding-right:4px;min-width:56px;max-width:60px}
+.wt-name-inner{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.wt-ico{font-size:13px;font-family:var(--fe);flex-shrink:0}
+.wt-lbl{font-size:11px;font-weight:700;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:38px}
+.wt-cell-wrap{text-align:center;padding:1px}
+.wt-cell{width:25px;height:25px;border-radius:6px;background:var(--bg2);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
 .wt-cell.done-c0{background:#ffd8d8;color:#d06060}
 .wt-cell.done-c1{background:#ddd8ff;color:#7060c0}
 .wt-cell.done-c2{background:#c8e8f8;color:#4090c0}
@@ -306,3 +306,4 @@ button{touch-action:manipulation}
 .neg-status{font-size:11px;font-weight:700;margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px}
 .neg-status.ok{background:var(--sage-l);color:var(--sage)}
 .neg-status.over{background:var(--pink-l);color:var(--coral)}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}

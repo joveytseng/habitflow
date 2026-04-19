@@ -62,7 +62,7 @@
     </div>
 
     <!-- 習慣 -->
-    <div class="secdiv"><span class="seclbl hl">習慣</span><div class="secline hl"></div></div>
+    <div class="secdiv"><span class="seclbl hl">習慣打卡</span><div class="secline hl"></div></div>
     <div id="today-h"></div>
 
     <!-- 節制習慣 -->
@@ -100,7 +100,8 @@
           </table>
         </div>
       </div>
-      <div class="chartbox"><div class="chartlbl">習慣完成詳情</div><div id="sw-hl"></div></div>
+      <div class="chartbox"><div class="chartlbl">習慣打卡</div><div id="sw-hl"></div></div>
+      <div class="chartbox"><div class="chartlbl">節制習慣</div><div id="sw-nl"></div></div>
       <div class="chartbox"><div class="chartlbl">目標進度</div><div id="sw-gl"></div></div>
     </div>
     <div id="sub-month" class="subpage">
@@ -122,7 +123,8 @@
           <div class="calleg-i"><div class="calleg-b" style="background:#fce8e8;border:1px solid #f5c5c5"></div>全部完成</div>
         </div>
       </div>
-      <div class="chartbox"><div class="chartlbl">習慣完成詳情</div><div id="sm-hl"></div></div>
+      <div class="chartbox"><div class="chartlbl">習慣打卡</div><div id="sm-hl"></div></div>
+      <div class="chartbox"><div class="chartlbl">節制習慣</div><div id="sm-nl"></div></div>
       <div class="chartbox"><div class="chartlbl">目標進度</div><div id="sm-gl"></div></div>
     </div>
     <div id="sub-hcal" class="subpage">
@@ -214,7 +216,15 @@
       </div>
     </div>
     <div id="nfields" style="display:none">
-      <div class="fg"><label class="fl">每日上限次數（超過即超標）</label><input class="fi" type="number" id="nLimit" min="1" value="5" style="font-size:16px"></div>
+      <div class="fg">
+        <label class="fl">計算週期</label>
+        <div class="fgrid3">
+          <div class="fopt sel" data-nfreq="daily" onclick="pickNFreq(this)">每天</div>
+          <div class="fopt" data-nfreq="weekly-n" onclick="pickNFreq(this)">每週</div>
+          <div class="fopt" data-nfreq="monthly-n" onclick="pickNFreq(this)">每月</div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">上限次數（超過即超標）</label><input class="fi" type="number" id="nLimit" min="1" value="5" style="font-size:16px"></div>
     </div>
     <div id="gfields" style="display:none">
       <div class="frow">

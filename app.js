@@ -16,7 +16,7 @@ const WL=['一','二','三','四','五','六','日'];
 const MTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
 let habits=[],goals=[],records={},negRecords={};
-let selIco=ICONS[0],selCol='c0',curFreq='daily',mType='habit',manT='h',stTab='week';
+let selIco=ICONS[0],selCol='c0',curFreq='daily',curNFreq='daily',mType='habit',manT='h',stTab='week';
 let wkOff=0,calY,calM,hcalY,hcalM,yearY;
 
 function getUserId(){
@@ -55,9 +55,32 @@ function isDone(id,s){
 function fTxt(f){
   if(!f)return '';
   if(f.type==='daily')return '每天';
-  if(f.type==='weekly-n')return `每週 ${f.n} 次`;
+  if(f.type==='weekly-n')return f.n?`每週 ${f.n} 次`:'每週';
   if(f.type==='weekly-days')return `每週${f.days.map(d=>DTW[d]).join('、')}`;
-  if(f.type==='monthly-n')return `每月 ${f.n} 次`;return '';
+  if(f.type==='monthly-n')return f.n?`每月 ${f.n} 次`:'每月';
+  return '';
+}
+function negPeriodLabel(h){
+  const ft=h.freq?.type||'daily';
+  if(ft==='weekly-n')return '本週';
+  if(ft==='monthly-n')return '本月';
+  return '今日';
+}
+function negPeriodCount(h,refDs){
+  const ft=h.freq?.type||'daily';
+  if(ft==='daily')return(negRecords[refDs]&&negRecords[refDs][h.id])||0;
+  const refD=new Date(refDs+'T00:00:00');
+  if(ft==='weekly-n'){
+    const ws=monSt(refD);let t=0;
+    for(let i=0;i<7;i++){const s=ds(addD(ws,i));t+=(negRecords[s]&&negRecords[s][h.id])||0;}
+    return t;
+  }
+  if(ft==='monthly-n'){
+    const y=refD.getFullYear(),m=refD.getMonth(),dim=new Date(y,m+1,0).getDate();let t=0;
+    for(let day=1;day<=dim;day++){const s=ds(new Date(y,m,day));t+=(negRecords[s]&&negRecords[s][h.id])||0;}
+    return t;
+  }
+  return 0;
 }
 function rTxt(i){if(!i.dateStart&&!i.dateEnd)return '';return `${i.dateStart||'起'}～${i.dateEnd||'∞'}`}
 function strk(id){
@@ -81,18 +104,20 @@ function showSaveStatus(ok,msg){
 }
 
 async function save(){
+  // 永遠先存本機備份
+  try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords}));}catch(e){}
   try{
     const userId=getUserId();
     await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords});
     showSaveStatus(true,'✓ 已儲存');
   }catch(e){
     console.error('Firebase save error:',e);
-    showSaveStatus(false,'✗ 儲存失敗：'+e.code);
-    toast('⚠️ 儲存失敗，請檢查 Firebase 規則');
+    showSaveStatus(false,'✗ 雲端失敗，已備份本機 ('+(e.code||e.message)+')');
   }
 }
 
 async function loadData(){
+  let loaded=false;
   try{
     const userId=getUserId();
     const snap=await getDoc(doc(db,'users',userId));
@@ -102,10 +127,18 @@ async function loadData(){
       goals=data.goals||[];
       records=data.records||{};
       negRecords=data.negRecords||{};
+      loaded=true;
+      try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords}));}catch(e){}
     }
   }catch(e){
     console.error('Firebase load error:',e);
-    showSaveStatus(false,'✗ 載入失敗：'+e.code);
+    showSaveStatus(false,'✗ 雲端載入失敗，使用本機備份 ('+(e.code||e.message)+')');
+  }
+  if(!loaded){
+    try{
+      const bk=localStorage.getItem('hf_data');
+      if(bk){const d=JSON.parse(bk);habits=d.habits||[];goals=d.goals||[];records=d.records||{};negRecords=d.negRecords||{};}
+    }catch(e){}
   }
   buildAll();
 }
@@ -205,20 +238,23 @@ function buildTodayNeg(){
   if(!due.length){el.innerHTML='';return;}
   const retroNote=isRetro?`<div style="font-size:11px;color:var(--coral);font-weight:700;margin-bottom:8px;padding:6px 10px;background:var(--pink-l);border-radius:8px">📅 補打 ${viewDate} 的記錄</div>`:'';
   el.innerHTML=retroNote+due.map(h=>{
-    const count=(negRecords[targetDs]&&negRecords[targetDs][h.id])||0;
-    const isOk=count<=(h.limit||0);
+    const limit=h.limit||0;
+    const periodCount=negPeriodCount(h,targetDs);
+    const dailyCount=(negRecords[targetDs]&&negRecords[targetDs][h.id])||0;
+    const isOk=periodCount<=limit;
+    const pl=negPeriodLabel(h);
     const rl=rTxt(h);
     return `<div class="hcard">
       <div class="hico ${h.color}">${h.icon}</div>
       <div class="hmeta">
         <div class="hname">${h.name}</div>
-        <div class="hfreq">今日上限：${h.limit||0} 次</div>
+        <div class="hfreq">${pl}上限：${limit} 次　<span style="font-weight:800;color:${isOk?'var(--sage)':'var(--coral)'}">${periodCount}/${limit}</span></div>
         ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
         <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
       </div>
       <div class="neg-counter">
         <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
-        <span class="neg-num ${count>(h.limit||0)?'over':''}">${count}</span>
+        <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
         <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
       </div>
     </div>`;
@@ -363,6 +399,18 @@ function buildGRows(elId){
   document.getElementById(elId).innerHTML=!goals.length?'<div style="color:var(--t2);font-size:13px;font-weight:600">還沒有目標</div>'
     :goals.map((g,i)=>{const pct=gpct(g),col=SC[i%5];return `<div class="hsr"><div class="hsr-head"><span>${g.icon} ${g.name}</span><span class="hsr-pct" style="color:${col}">${g.current||0}/${g.total} ${g.unit||''} · ${pct}%</span></div><div class="hsr-bg"><div class="hsr-fill" style="width:${pct}%;background:${col}"></div></div></div>`;}).join('');
 }
+function buildNegRows(dates,elId){
+  const el=document.getElementById(elId);if(!el)return;
+  const negH=habits.filter(h=>h.negative);
+  if(!negH.length){el.innerHTML='<div style="color:var(--t2);font-size:13px;font-weight:600">還沒有節制習慣</div>';return;}
+  el.innerHTML=negH.map((h,i)=>{
+    let underDays=0,totalDays=0;
+    dates.forEach(d=>{if(!inR(h,d))return;totalDays++;const s=ds(d);const c=(negRecords[s]&&negRecords[s][h.id])||0;if(c<=(h.limit||0))underDays++;});
+    const pct=totalDays>0?Math.round(underDays/totalDays*100):100;
+    const col=pct>=70?'#6ecfa8':'#f08888';
+    return `<div class="hsr"><div class="hsr-head"><span>${h.icon} ${h.name}</span><span class="hsr-pct" style="color:${col}">${underDays}/${totalDays} 天控制中 · ${pct}%</span></div><div class="hsr-bg"><div class="hsr-fill" style="width:${pct}%;background:${col}"></div></div></div>`;
+  }).join('');
+}
 function buildWeekSt(){
   const dates=getDs('week'),{rate,count}=calcSt(dates);
   document.getElementById('sw-r').innerHTML=`${rate}<span style="font-size:15px">%</span>`;
@@ -370,7 +418,7 @@ function buildWeekSt(){
   document.getElementById('sw-t').textContent=habits.length+goals.length;
   const posH=habits.filter(h=>!h.negative);
   document.getElementById('sw-s').textContent=posH.length?Math.max(...posH.map(h=>strk(h.id))):0;
-  buildWeekTable();buildHRows(dates,'sw-hl');buildGRows('sw-gl');
+  buildWeekTable();buildHRows(dates,'sw-hl');buildNegRows(dates,'sw-nl');buildGRows('sw-gl');
 }
 function buildMonthSt(){
   const dates=getDs('month'),{rate,count}=calcSt(dates);
@@ -379,7 +427,7 @@ function buildMonthSt(){
   document.getElementById('sm-t').textContent=habits.length+goals.length;
   const posH=habits.filter(h=>!h.negative);
   document.getElementById('sm-s').textContent=posH.length?Math.max(...posH.map(h=>strk(h.id))):0;
-  renderCal();buildHRows(dates,'sm-hl');buildGRows('sm-gl');
+  renderCal();buildHRows(dates,'sm-hl');buildNegRows(dates,'sm-nl');buildGRows('sm-gl');
 }
 function renderCal(){
   document.getElementById('calTitle').textContent=`${calY} 年 ${MTHS[calM]}`;
@@ -531,7 +579,7 @@ function buildManage(){
       <div class="swipe-del-bg">🗑️<br>刪除</div>
       <div class="mitem" data-type="habit" data-id="${h.id}">
         <div class="hico ${h.color}" style="font-family:var(--fe)">${h.icon}</div>
-        <div class="minfo"><div class="mname">${h.name}</div><div class="msub">節制習慣・上限 ${h.limit} 次/天${rTxt(h)?' · '+rTxt(h):''}</div></div>
+        <div class="minfo"><div class="mname">${h.name}</div><div class="msub">節制習慣・${fTxt(h.freq)} 上限 ${h.limit} 次${rTxt(h)?' · '+rTxt(h):''}</div></div>
         <div class="macts"><button class="abtn aedit" onclick="editItem('habit','${h.id}')">✏️</button></div>
       </div>
     </div>`).join('');
@@ -589,7 +637,8 @@ function buildIco(){document.getElementById('icoGrid').innerHTML=ICONS.map(ic=>`
 function buildCol(){document.getElementById('colRow').innerHTML=COLS.map(c=>`<div class="cchip${c===selCol?' sel':''}" style="background:${CHEX[c]}" onclick="pickCol(this,'${c}')"></div>`).join('')}
 function pickIco(el,v){selIco=v;document.querySelectorAll('.iopt').forEach(e=>e.classList.remove('sel'));el.classList.add('sel')}
 function pickCol(el,v){selCol=v;document.querySelectorAll('.cchip').forEach(e=>e.classList.remove('sel'));el.classList.add('sel')}
-function pickFreq(el){curFreq=el.dataset.freq;document.querySelectorAll('.fopt').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');['weekly-n','weekly-days','monthly-n'].forEach(k=>document.getElementById('fs-'+k).classList.toggle('show',curFreq===k))}
+function pickFreq(el){curFreq=el.dataset.freq;document.querySelectorAll('.fopt[data-freq]').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');['weekly-n','weekly-days','monthly-n'].forEach(k=>document.getElementById('fs-'+k).classList.toggle('show',curFreq===k))}
+function pickNFreq(el){curNFreq=el.dataset.nfreq;document.querySelectorAll('.fopt[data-nfreq]').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
 function togDay(el){el.classList.toggle('sel')}
 function setMT2(t,el){
   mType=t;
@@ -609,6 +658,7 @@ function openAdd(){
   document.getElementById('dStart').value='';document.getElementById('dEnd').value='';
   document.getElementById('gTotal').value='';document.getElementById('gUnit').value='';document.getElementById('gCur').value='0';
   document.getElementById('nLimit').value='5';
+  curNFreq='daily';document.querySelectorAll('.fopt[data-nfreq]').forEach(e=>e.classList.toggle('sel',e.dataset.nfreq==='daily'));
   selIco=ICONS[0];selCol='c0';curFreq='daily';mType=defType;
   buildIco();buildCol();
   document.getElementById('mTypeRow').style.display='flex';
@@ -637,6 +687,8 @@ function editItem(type,id){
   document.getElementById('gfields').style.display=type==='goal'?'block':'none';
   if(item.negative){
     document.getElementById('nLimit').value=item.limit||5;
+    curNFreq=item.freq?.type||'daily';
+    document.querySelectorAll('.fopt[data-nfreq]').forEach(e=>e.classList.toggle('sel',e.dataset.nfreq===curNFreq));
   }else if(type==='habit'){
     curFreq=item.freq.type;
     document.querySelectorAll('.fopt').forEach(e=>e.classList.remove('sel'));
@@ -660,8 +712,9 @@ function saveItem(){
   const note=document.getElementById('iNote').value.trim()||null;
   if(type==='negative'){
     const limit=parseInt(document.getElementById('nLimit').value)||1;
-    if(eId){const i=habits.findIndex(h=>h.id===eId);if(i>=0)habits[i]={...habits[i],name,icon:selIco,color:selCol,limit,dateStart,dateEnd,note};}
-    else habits.push({id:uid(),name,icon:selIco,color:selCol,freq:{type:'daily'},negative:true,limit,dateStart,dateEnd,note});
+    const negFreq={type:curNFreq||'daily'};
+    if(eId){const i=habits.findIndex(h=>h.id===eId);if(i>=0)habits[i]={...habits[i],name,icon:selIco,color:selCol,limit,freq:negFreq,dateStart,dateEnd,note};}
+    else habits.push({id:uid(),name,icon:selIco,color:selCol,freq:negFreq,negative:true,limit,dateStart,dateEnd,note});
   }else if(type==='habit'){
     let freq={type:curFreq};
     if(curFreq==='weekly-n')freq.n=parseInt(document.getElementById('fWN').value)||3;
@@ -724,7 +777,7 @@ window.hcalPrev=hcalPrev;window.hcalNext=hcalNext;window.yearPrev=yearPrev;windo
 window.setMT=setMT;window.setMT2=setMT2;window.pickFreq=pickFreq;window.togDay=togDay;
 window.pickIco=pickIco;window.pickCol=pickCol;window.closeModal=closeModal;window.saveItem=saveItem;
 window.editItem=editItem;window.togH=togH;window.qSet=qSet;window.qAdd=qAdd;
-window.negInc=negInc;window.negDec=negDec;
+window.negInc=negInc;window.negDec=negDec;window.pickNFreq=pickNFreq;
 window.exportCSV=exportCSV;window.copyUID=copyUID;window.importUID=importUID;
 
 buildTopDate();
