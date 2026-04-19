@@ -103,48 +103,64 @@ function showSaveStatus(ok,msg){
   el._t=setTimeout(()=>{el.style.display='none';},ok?2000:5000);
 }
 
+function lsSave(){
+  // localStorage 為主要儲存，同步寫入
+  try{
+    localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords}));
+    return true;
+  }catch(e){console.error('localStorage save error:',e);return false;}
+}
+function lsLoad(){
+  // 從 localStorage 讀資料，同步
+  try{
+    const bk=localStorage.getItem('hf_data');
+    if(!bk)return false;
+    const d=JSON.parse(bk);
+    habits=d.habits||[];goals=d.goals||[];records=d.records||{};
+    negRecords=d.negRecords||{};goalRecords=d.goalRecords||{};
+    return true;
+  }catch(e){console.error('localStorage load error:',e);return false;}
+}
+
 async function save(){
-  // 永遠先存本機備份
-  try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords}));}catch(e){}
+  // 第一步：同步存本機，立即顯示結果
+  const ok=lsSave();
+  showSaveStatus(ok,'✓ 已儲存');
+  if(!ok){showSaveStatus(false,'✗ 本機儲存失敗（請檢查瀏覽器設定）');return;}
+  // 第二步：背景同步到 Firebase（不影響 UI）
   try{
     const userId=getUserId();
     await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords,goalRecords});
-    showSaveStatus(true,'✓ 已儲存');
   }catch(e){
-    console.error('Firebase save error:',e);
-    showSaveStatus(false,'✗ 雲端失敗，已備份本機 ('+(e.code||e.message)+')');
     const fb=document.getElementById('fbStatus');if(fb)fb.style.display='block';
   }
 }
 
-async function loadData(){
-  let loaded=false;
+function loadData(){
+  // 第一步：從 localStorage 同步讀，立刻建 UI
+  const hasLocal=lsLoad();
+  buildAll();
+  // 第二步：背景嘗試 Firebase 同步（有新資料時更新）
+  syncFromFirebase();
+}
+
+async function syncFromFirebase(){
   try{
     const userId=getUserId();
     const snap=await getDoc(doc(db,'users',userId));
     if(snap.exists()){
       const data=snap.data();
-      habits=data.habits||[];
-      goals=data.goals||[];
-      records=data.records||{};
-      negRecords=data.negRecords||{};
-      goalRecords=data.goalRecords||{};
-      loaded=true;
-      try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords}));}catch(e){}
+      // Firebase 有資料才覆蓋（多設備同步用）
+      habits=data.habits||[];goals=data.goals||[];
+      records=data.records||{};negRecords=data.negRecords||{};goalRecords=data.goalRecords||{};
+      lsSave(); // 同步到 localStorage
+      buildAll();
+      showSaveStatus(true,'✓ 已從雲端同步');
+      const fb=document.getElementById('fbStatus');if(fb)fb.style.display='none';
     }
   }catch(e){
-    console.error('Firebase load error:',e);
-    showSaveStatus(false,'✗ 雲端載入失敗，使用本機備份 ('+(e.code||e.message)+')');
     const fb=document.getElementById('fbStatus');if(fb)fb.style.display='block';
   }
-  if(!loaded){
-    try{
-      const bk=localStorage.getItem('hf_data');
-      if(bk){const d=JSON.parse(bk);habits=d.habits||[];goals=d.goals||[];records=d.records||{};negRecords=d.negRecords||{};goalRecords=d.goalRecords||{};
-        if(habits.length)toast('⚠️ 從本機備份讀取（Firebase 未連線）');}
-    }catch(e){}
-  }
-  buildAll();
 }
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -632,6 +648,17 @@ function setMT(t){
 
 function buildManage(){
   document.getElementById('displayUID').textContent=getUserId();
+  // 顯示本機儲存狀態
+  const lsInfo=document.getElementById('lsInfo');
+  if(lsInfo){
+    try{
+      const bk=localStorage.getItem('hf_data');
+      const d=bk?JSON.parse(bk):null;
+      const cnt=d?((d.habits||[]).length):0;
+      lsInfo.textContent=`本機備份：${cnt>0?cnt+' 筆習慣已儲存 ✓':'尚無資料'}`;
+      lsInfo.style.color=cnt>0?'var(--sage)':'var(--t2)';
+    }catch(e){lsInfo.textContent='本機備份讀取錯誤';}
+  }
   const posH=habits.filter(h=>!h.negative);
   const negH=habits.filter(h=>h.negative);
   document.getElementById('m-hl').innerHTML=!posH.length
