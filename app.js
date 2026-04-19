@@ -161,9 +161,11 @@ function buildWeek(){
   const strip=document.getElementById('weekStrip');strip.innerHTML='';
   WO.forEach((dow,i)=>{
     const d=addD(mon,i),s=ds(d),isT=s===tds;
-    const posH=habits.filter(h=>!h.negative);
-    const due=posH.filter(h=>isDue(h,d)),done=due.filter(h=>(records[s]||[]).includes(h.id)).length;
-    const hasDone=done>0&&!isT;
+    const posH=habits.filter(h=>!h.negative),negH=habits.filter(h=>h.negative);
+    const posDue=posH.filter(h=>isDue(h,d)),posDone=posDue.filter(h=>(records[s]||[]).includes(h.id)).length;
+    const negDue=negH.filter(h=>isDue(h,d)); // isDue 已含 dateStart 判斷
+    const negCtrl=negDue.filter(h=>((negRecords[s]&&negRecords[s][h.id])||0)<=(h.limit||0)).length;
+    const hasDone=(posDone>0||negCtrl>0)&&!isT;
     const el=document.createElement('div');
     el.className='wday'+(isT?' today':hasDone?' has-done':'');
     el.innerHTML=`<div class="wdn">${WL[i]}</div><div class="wdd">${d.getDate()}</div>${hasDone?`<div class="wstar">★</div>`:''}`;
@@ -449,14 +451,17 @@ function renderCal(){
   grid.innerHTML=DTW.map(d=>`<div class="caldow">${d}</div>`).join('');
   const first=new Date(calY,calM,1).getDay(),dim=new Date(calY,calM+1,0).getDate();
   for(let i=0;i<first;i++)grid.innerHTML+=`<div class="calday empty-c"></div>`;
-  const posHCal=habits.filter(h=>!h.negative);
+  const posHCal=habits.filter(h=>!h.negative),negHCal=habits.filter(h=>h.negative);
   for(let day=1;day<=dim;day++){
     const d=new Date(calY,calM,day),s=ds(d);
-    const due=posHCal.filter(h=>isDue(h,d)),done=due.filter(h=>(records[s]||[]).includes(h.id)).length;
-    const isT=s===tds,all=due.length>0&&done===due.length,some=done>0&&done<due.length;
+    const posDue=posHCal.filter(h=>isDue(h,d)),posDone=posDue.filter(h=>(records[s]||[]).includes(h.id)).length;
+    const negDue=negHCal.filter(h=>isDue(h,d)); // isDue 含 dateStart
+    const negCtrl=negDue.filter(h=>((negRecords[s]&&negRecords[s][h.id])||0)<=(h.limit||0)).length;
+    const totalDue=posDue.length+negDue.length,totalDone=posDone+negCtrl;
+    const isT=s===tds,all=totalDue>0&&totalDone===totalDue,some=totalDone>0&&totalDone<totalDue;
     let cls='calday';
     if(isT)cls+=' today-c';else if(all)cls+=' full';else if(some)cls+=' some';
-    grid.innerHTML+=`<div class="${cls}">${day}${done>0&&!isT?`<div class="caldot">${all?'★':'·'}</div>`:''}</div>`;
+    grid.innerHTML+=`<div class="${cls}">${day}${totalDone>0&&!isT?`<div class="caldot">${all?'★':'·'}</div>`:''}</div>`;
   }
 }
 function calPrev(){calM--;if(calM<0){calM=11;calY--;}renderCal()}
