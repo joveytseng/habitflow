@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HabitFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="cwrap">
+  <div class="topbar">
+    <div class="brand">HABIT<span>FLOW</span></div>
+    <div class="top-right">
+      <div class="topdate" id="topdate"></div>
+      <button class="add-btn" onclick="openAdd()">＋</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tab-today" onclick="goTab('today')">今日</button>
+    <button class="tab" id="tab-stats" onclick="goTab('stats')">統計</button>
+    <button class="tab" id="tab-manage" onclick="goTab('manage')">管理</button>
+  </div>
+
+  <!-- 今日 -->
+  <div id="page-today" class="page active">
+    <div class="week-header">
+      <button class="week-nav" onclick="weekPrev()">‹</button>
+      <div class="week-label" id="weekLabel"></div>
+      <button class="week-nav" onclick="weekNext()">›</button>
+    </div>
+    <div class="week-strip" id="weekStrip"></div>
+    <!-- 日期選擇列 -->
+    <div id="datePickerRow" style="display:none;margin-bottom:12px;background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;font-weight:700;color:var(--t2)">補打日期：</span>
+        <input type="date" id="retroDate" class="fi" style="flex:1;padding:7px 10px;font-size:13px" oninput="switchViewDate(this.value)">
+        <button onclick="backToToday()" style="padding:7px 12px;border:none;border-radius:7px;background:var(--pink-l);color:var(--coral);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">回今日</button>
+      </div>
+    </div>
+    <div class="prbox">
+      <div class="prw">
+        <svg class="prsvg" viewBox="0 0 54 54"><circle class="pr-bg" cx="27" cy="27" r="19"/><circle class="pr-fill" cx="27" cy="27" r="19" id="prRing"/></svg>
+        <div class="pr-ctr" id="prTxt">0/0</div>
+      </div>
+      <div class="pri">
+        <h3 id="prTitle">今天完成 0 項習慣</h3>
+        <p id="prSub">開始你的第一個打卡！</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+      <div class="secdiv" style="flex:1;margin-right:10px"><span class="seclbl hl">習慣打卡</span><div class="secline hl"></div></div>
+      <button onclick="toggleRetro()" id="retroBtn" style="font-size:11px;font-weight:700;color:var(--coral);background:var(--pink-l);border:1px solid var(--pink-m);border-radius:99px;padding:4px 11px;cursor:pointer;white-space:nowrap;margin-top:2px">補打卡</button>
+    </div>
+    <div id="today-h"></div>
+    <div class="secdiv"><span class="seclbl gl">目標進度</span><div class="secline gl"></div></div>
+    <div id="today-g"></div>
+  </div>
+
+  <!-- 統計 -->
+  <div id="page-stats" class="page">
+    <div class="stabs">
+      <button class="stab active" id="stab-week" onclick="goSt('week')">本週</button>
+      <button class="stab" id="stab-month" onclick="goSt('month')">本月</button>
+      <button class="stab" id="stab-hcal" onclick="goSt('hcal')">各習慣</button>
+      <button class="stab" id="stab-year" onclick="goSt('year')">年度</button>
+    </div>
+    <!-- 本週 -->
+    <div id="sub-week" class="subpage active">
+      <div class="stgrid">
+        <div class="stbox"><div class="stnum p" id="sw-r">0%</div><div class="stlbl">完成率</div></div>
+        <div class="stbox"><div class="stnum g" id="sw-c">0</div><div class="stlbl">本週打卡</div></div>
+        <div class="stbox"><div class="stnum p" id="sw-s">0</div><div class="stlbl">最長連續天</div></div>
+        <div class="stbox"><div class="stnum g" id="sw-t">0</div><div class="stlbl">習慣+目標</div></div>
+      </div>
+      <!-- 週報表格 -->
+      <div class="week-table-wrap">
+        <div class="wt-title">本週打卡記錄</div>
+        <div class="wt-scroll">
+          <table class="wt">
+            <thead class="wt-head">
+              <tr id="wt-head-row"><th class="wt-name-h"></th></tr>
+            </thead>
+            <tbody id="wt-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="chartbox"><div class="chartlbl">習慣完成詳情</div><div id="sw-hl"></div></div>
+      <div class="chartbox"><div class="chartlbl">目標進度</div><div id="sw-gl"></div></div>
+    </div>
+    <!-- 本月 -->
+    <div id="sub-month" class="subpage">
+      <div class="stgrid">
+        <div class="stbox"><div class="stnum p" id="sm-r">0%</div><div class="stlbl">完成率</div></div>
+        <div class="stbox"><div class="stnum g" id="sm-c">0</div><div class="stlbl">本月打卡</div></div>
+        <div class="stbox"><div class="stnum p" id="sm-s">0</div><div class="stlbl">最長連續天</div></div>
+        <div class="stbox"><div class="stnum g" id="sm-t">0</div><div class="stlbl">習慣+目標</div></div>
+      </div>
+      <div class="calwrap">
+        <div class="calhead">
+          <button class="calnav" onclick="calPrev()">‹</button>
+          <div class="caltitle" id="calTitle"></div>
+          <button class="calnav" onclick="calNext()">›</button>
+        </div>
+        <div class="calgrid" id="calGrid"></div>
+        <div class="calleg">
+          <div class="calleg-i"><div class="calleg-b" style="background:#eee8fd;border:1px solid #c5bff0"></div>部分完成</div>
+          <div class="calleg-i"><div class="calleg-b" style="background:#fce8e8;border:1px solid #f5c5c5"></div>全部完成</div>
+        </div>
+      </div>
+      <div class="chartbox"><div class="chartlbl">習慣完成詳情</div><div id="sm-hl"></div></div>
+    </div>
+    <!-- 各習慣 -->
+    <div id="sub-hcal" class="subpage">
+      <div class="calhead" style="margin-bottom:12px">
+        <button class="calnav" onclick="hcalPrev()">‹</button>
+        <div class="caltitle" id="hcalTitle"></div>
+        <button class="calnav" onclick="hcalNext()">›</button>
+      </div>
+      <div class="hcal-grid" id="hcalList"></div>
+    </div>
+    <!-- 年度 -->
+    <div id="sub-year" class="subpage">
+      <div class="calhead" style="margin-bottom:12px">
+        <button class="calnav" onclick="yearPrev()">‹</button>
+        <div class="caltitle" id="yearTitle"></div>
+        <button class="calnav" onclick="yearNext()">›</button>
+      </div>
+      <div id="yearList"></div>
+    </div>
+  </div>
+
+  <!-- 管理 -->
+  <div id="page-manage" class="page">
+    <div class="mtoggle">
+      <button class="mtbtn ah" id="mt-h" onclick="setMT('h')">✅ 習慣</button>
+      <button class="mtbtn" id="mt-g" onclick="setMT('g')">🎯 目標</button>
+    </div>
+    <div id="m-hl"></div>
+    <div id="m-gl" style="display:none"></div>
+    <!-- 格言 -->
+    <div style="margin-top:28px;padding:16px 18px;background:var(--pink-l);border-radius:var(--r);border-left:3px solid var(--coral)">
+      <div style="font-size:11px;font-weight:800;color:var(--coral);letter-spacing:1px;margin-bottom:6px">✨ 給自己的提醒</div>
+      <div style="font-size:13px;font-weight:600;color:var(--t1);line-height:1.7">算算看，全部加起來會花你一天／週多少時間？</div>
+      <div style="font-size:12px;color:var(--t2);font-weight:500;line-height:1.7;margin-top:4px">別高估一年想做的事，卻忽略十年能夠完成的成就！</div>
+      <div style="margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.7);border-radius:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--t2);font-weight:600">我的裝置ID：</span>
+        <span id="displayUID" style="font-size:10px;color:var(--t2);font-family:monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <button onclick="copyUID()" style="font-size:10px;font-weight:700;color:var(--coral);background:transparent;border:none;cursor:pointer">複製</button>
+      </div>
+    </div>
+    <button onclick="exportCSV()" style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:14px;background:#edfbf4;color:#3a9a6a;font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(110,207,168,0.4)">📥 匯出打卡記錄（CSV）</button>
+    <button onclick="importUID()" style="width:100%;margin-top:8px;padding:13px;border:none;border-radius:14px;background:var(--sky-l);color:var(--sky);font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(128,200,232,0.4)">🔄 輸入 ID 切換裝置</button>
+  </div>
+</div>
+
+<!-- 底部導航 -->
+<div class="bnav">
+  <button class="nbtn active" id="nav-today" onclick="goTab('today')"><span class="nico">✅</span>今日</button>
+  <button class="nbtn" id="nav-stats" onclick="goTab('stats')"><span class="nico">📊</span>統計</button>
+  <button class="nbtn" id="nav-manage" onclick="goTab('manage')"><span class="nico">⚙️</span>管理</button>
+</div>
+
+<!-- Modal -->
+<div class="moverlay" id="modal">
+  <div class="modal">
+    <div class="mtitle" id="mTitle">新增項目</div>
+    <input type="hidden" id="eId"><input type="hidden" id="eType">
+    <div id="mTypeRow" class="mrow">
+      <div class="mrbtn active" data-mt="habit" onclick="setMT2('habit',this)">✅ 習慣打卡</div>
+      <div class="mrbtn" data-mt="goal" onclick="setMT2('goal',this)">🎯 目標進度</div>
+    </div>
+    <div class="fg"><label class="fl">名稱</label><input class="fi" type="text" id="iName" placeholder="輸入名稱"></div>
+    <div class="fg"><label class="fl">圖示</label><div class="igrid" id="icoGrid"></div></div>
+    <div class="fg"><label class="fl">顏色</label><div class="crow" id="colRow"></div></div>
+    <div id="hfields">
+      <div class="fg">
+        <label class="fl">頻率</label>
+        <div class="fgrid">
+          <div class="fopt sel" data-freq="daily" onclick="pickFreq(this)">每天</div>
+          <div class="fopt" data-freq="weekly-n" onclick="pickFreq(this)">每週幾次</div>
+          <div class="fopt" data-freq="weekly-days" onclick="pickFreq(this)">每週固定某天</div>
+          <div class="fopt" data-freq="monthly-n" onclick="pickFreq(this)">每月幾次</div>
+        </div>
+        <div class="fsub" id="fs-weekly-n"><label class="fl" style="margin-top:9px">每週幾次</label><input class="fi" type="number" id="fWN" min="1" max="7" value="3"></div>
+        <div class="fsub" id="fs-weekly-days">
+          <label class="fl" style="margin-top:9px">選擇星期</label>
+          <div class="drow">
+            <div class="dchip" data-d="1" onclick="togDay(this)">一</div>
+            <div class="dchip" data-d="2" onclick="togDay(this)">二</div>
+            <div class="dchip" data-d="3" onclick="togDay(this)">三</div>
+            <div class="dchip" data-d="4" onclick="togDay(this)">四</div>
+            <div class="dchip" data-d="5" onclick="togDay(this)">五</div>
+            <div class="dchip" data-d="6" onclick="togDay(this)">六</div>
+            <div class="dchip" data-d="0" onclick="togDay(this)">日</div>
+          </div>
+        </div>
+        <div class="fsub" id="fs-monthly-n"><label class="fl" style="margin-top:9px">每月幾次</label><input class="fi" type="number" id="fMN" min="1" max="31" value="4"></div>
+      </div>
+    </div>
+    <div id="gfields" style="display:none">
+      <div class="frow">
+        <div class="fg"><label class="fl">目標總量</label><input class="fi" type="number" id="gTotal" placeholder="例：10"></div>
+        <div class="fg"><label class="fl">單位</label><input class="fi" type="text" id="gUnit" placeholder="例：公斤"></div>
+      </div>
+      <div class="fg"><label class="fl">目前已完成</label><input class="fi" type="number" id="gCur" value="0"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">執行區間（選填）</label>
+      <div class="frow">
+        <div><label class="fl">開始</label><input class="fi" type="date" id="dStart"></div>
+        <div><label class="fl">結束</label><input class="fi" type="date" id="dEnd"></div>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">備註（選填）</label><input class="fi" type="text" id="iNote" placeholder="說明"></div>
+    <div class="mbtns">
+      <button class="mbcancel" onclick="closeModal()">取消</button>
+      <button class="mbsave" onclick="saveItem()">儲存</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
