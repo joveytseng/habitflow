@@ -150,15 +150,16 @@ async function syncFromFirebase(){
     const snap=await getDoc(doc(db,'users',userId));
     if(snap.exists()){
       const data=snap.data();
-      // Firebase 有資料才覆蓋（多設備同步用）
       habits=data.habits||[];goals=data.goals||[];
       records=data.records||{};negRecords=data.negRecords||{};goalRecords=data.goalRecords||{};
-      lsSave(); // 同步到 localStorage
+      lsSave();
       buildAll();
       showSaveStatus(true,'✓ 已從雲端同步');
       const fb=document.getElementById('fbStatus');if(fb)fb.style.display='none';
     }
+    // Firebase 連通但無資料：靜默，用本機資料就好
   }catch(e){
+    // Firebase 失敗：靜默，只在管理頁顯示說明框
     const fb=document.getElementById('fbStatus');if(fb)fb.style.display='block';
   }
 }
