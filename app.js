@@ -108,11 +108,12 @@ async function save(){
   try{localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords}));}catch(e){}
   try{
     const userId=getUserId();
-    await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords});
+    await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords,goalRecords});
     showSaveStatus(true,'✓ 已儲存');
   }catch(e){
     console.error('Firebase save error:',e);
     showSaveStatus(false,'✗ 雲端失敗，已備份本機 ('+(e.code||e.message)+')');
+    const fb=document.getElementById('fbStatus');if(fb)fb.style.display='block';
   }
 }
 
@@ -134,6 +135,7 @@ async function loadData(){
   }catch(e){
     console.error('Firebase load error:',e);
     showSaveStatus(false,'✗ 雲端載入失敗，使用本機備份 ('+(e.code||e.message)+')');
+    const fb=document.getElementById('fbStatus');if(fb)fb.style.display='block';
   }
   if(!loaded){
     try{
@@ -159,7 +161,8 @@ function buildWeek(){
   const strip=document.getElementById('weekStrip');strip.innerHTML='';
   WO.forEach((dow,i)=>{
     const d=addD(mon,i),s=ds(d),isT=s===tds;
-    const due=habits.filter(h=>isDue(h,d)),done=due.filter(h=>isDone(h.id,s)).length;
+    const posH=habits.filter(h=>!h.negative);
+    const due=posH.filter(h=>isDue(h,d)),done=due.filter(h=>(records[s]||[]).includes(h.id)).length;
     const hasDone=done>0&&!isT;
     const el=document.createElement('div');
     el.className='wday'+(isT?' today':hasDone?' has-done':'');
@@ -255,9 +258,9 @@ function buildTodayNeg(){
         <span class="neg-status ${isOk?'ok':'over'}">${isOk?'✓ 控制中':'⚠️ 超標'}</span>
       </div>
       <div class="neg-counter">
-        <button class="neg-btn nbtn-m" onclick="negDec('${h.id}','${targetDs}')">-1</button>
-        <button class="neg-btn nbtn-p" onclick="negInc('${h.id}','${targetDs}')">+1</button>
-        <button class="neg-btn nbtn-p2" onclick="negInc2('${h.id}','${targetDs}')">+2</button>
+        <button class="neg-btn" onclick="negDec('${h.id}','${targetDs}')">－</button>
+        <span class="neg-num ${dailyCount>limit?'over':''}">${dailyCount}</span>
+        <button class="neg-btn" onclick="negInc('${h.id}','${targetDs}')">＋</button>
       </div>
     </div>`;
   }).join('');
@@ -277,10 +280,11 @@ function buildTodayG(){
       </div>
       <div class="gbar-bg"><div class="gbar-fill" style="width:${pct}%"></div></div>
       <div class="ginrow">
-        <input class="gmini" type="number" id="gs_${g.id}" placeholder="設定目前數字" style="font-size:16px">
+        <input class="gmini" type="number" id="gs_${g.id}" placeholder="輸入完成%" style="font-size:16px">
         <button class="gbset" onclick="qSet('${g.id}')">設定</button>
-        <input class="gmini" type="number" id="ga_${g.id}" placeholder="+增加" style="font-size:16px">
-        <button class="gbadd" onclick="qAdd('${g.id}')">＋加</button>
+        <button class="gbadd gbtn-m" onclick="qDec('${g.id}')">-1</button>
+        <button class="gbadd gbtn-p" onclick="qInc('${g.id}')">+1</button>
+        <button class="gbadd gbtn-p2" onclick="qInc2('${g.id}')">+2</button>
       </div>
     </div>`;
   }).join('');
@@ -311,6 +315,9 @@ function togH(id,targetDs){
 }
 function qSet(id){const v=parseFloat(document.getElementById('gs_'+id).value);if(isNaN(v)||v<0)return;const g=goals.find(x=>x.id===id);if(!g)return;const delta=v-(g.current||0);if(delta>0){const s=td();if(!goalRecords[s])goalRecords[s]={};goalRecords[s][id]=(goalRecords[s][id]||0)+delta;}g.current=v;save();buildTodayG();toast('進度已更新！')}
 function qAdd(id){const v=parseFloat(document.getElementById('ga_'+id).value);if(isNaN(v)||v<=0)return;const g=goals.find(x=>x.id===id);if(!g)return;const s=td();if(!goalRecords[s])goalRecords[s]={};goalRecords[s][id]=(goalRecords[s][id]||0)+v;g.current=Math.min((g.current||0)+v,g.total);save();buildTodayG();toast(`+${v} 已累加！`)}
+function qInc(id,n){if(!n)n=1;const g=goals.find(x=>x.id===id);if(!g)return;const s=td();if(!goalRecords[s])goalRecords[s]={};goalRecords[s][id]=(goalRecords[s][id]||0)+n;g.current=Math.min((g.current||0)+n,g.total);save();buildTodayG();toast(`+${n} 已累加！`)}
+function qInc2(id){qInc(id,2)}
+function qDec(id){const g=goals.find(x=>x.id===id);if(!g||!g.current)return;g.current=Math.max(0,(g.current||0)-1);save();buildTodayG();toast('-1 已減少')}
 
 function updatePR(){
   const targetDs=viewDate||td();
@@ -442,9 +449,10 @@ function renderCal(){
   grid.innerHTML=DTW.map(d=>`<div class="caldow">${d}</div>`).join('');
   const first=new Date(calY,calM,1).getDay(),dim=new Date(calY,calM+1,0).getDate();
   for(let i=0;i<first;i++)grid.innerHTML+=`<div class="calday empty-c"></div>`;
+  const posHCal=habits.filter(h=>!h.negative);
   for(let day=1;day<=dim;day++){
     const d=new Date(calY,calM,day),s=ds(d);
-    const due=habits.filter(h=>isDue(h,d)),done=due.filter(h=>isDone(h.id,s)).length;
+    const due=posHCal.filter(h=>isDue(h,d)),done=due.filter(h=>(records[s]||[]).includes(h.id)).length;
     const isT=s===tds,all=due.length>0&&done===due.length,some=done>0&&done<due.length;
     let cls='calday';
     if(isT)cls+=' today-c';else if(all)cls+=' full';else if(some)cls+=' some';
@@ -838,6 +846,7 @@ window.setMT=setMT;window.setMT2=setMT2;window.pickFreq=pickFreq;window.togDay=t
 window.pickIco=pickIco;window.pickCol=pickCol;window.closeModal=closeModal;window.saveItem=saveItem;
 window.editItem=editItem;window.togH=togH;window.qSet=qSet;window.qAdd=qAdd;
 window.negInc=negInc;window.negInc2=negInc2;window.negDec=negDec;window.pickNFreq=pickNFreq;
+window.qDec=qDec;window.qInc=qInc;window.qInc2=qInc2;
 window.exportCSV=exportCSV;window.copyUID=copyUID;window.importUID=importUID;
 
 buildTopDate();

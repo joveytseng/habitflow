@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <title>HabitFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -165,6 +167,12 @@
         <button onclick="copyUID()" style="font-size:12px;font-weight:700;color:var(--coral);background:transparent;border:none;cursor:pointer;touch-action:manipulation">複製</button>
       </div>
     </div>
+    <div id="fbStatus" style="margin-top:16px;padding:14px;background:#fff8ed;border-radius:var(--r);border-left:3px solid var(--peach);display:none">
+      <div style="font-size:11px;font-weight:800;color:var(--peach);margin-bottom:6px">⚠️ Firebase 未連線 — 需更新規則</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.8;margin-bottom:8px">請前往 Firebase Console → Firestore Database → Rules，將規則改為：</div>
+      <div style="background:#f0ede8;border-radius:8px;padding:10px;font-size:11px;font-family:monospace;color:var(--t1);line-height:1.8;word-break:break-all">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if true;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:8px">⚠️ 本機備份仍有效，刷新頁面後資料不會消失。</div>
+    </div>
     <button onclick="exportCSV()" style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:14px;background:#edfbf4;color:#3a9a6a;font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(110,207,168,0.4);touch-action:manipulation">📥 匯出打卡記錄（CSV）</button>
     <button onclick="importUID()" style="width:100%;margin-top:8px;padding:13px;border:none;border-radius:14px;background:var(--sky-l);color:var(--sky);font-size:14px;font-weight:700;cursor:pointer;border:1px solid rgba(128,200,232,0.4);touch-action:manipulation">🔄 輸入 ID 切換裝置</button>
   </div>
@@ -249,6 +257,6 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=4"></script>
+<script type="module" src="app.js?v=5"></script>
 </body>
 </html>
