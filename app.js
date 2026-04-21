@@ -15,7 +15,7 @@ const WO=[1,2,3,4,5,6,0];
 const WL=['一','二','三','四','五','六','日'];
 const MTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
-let habits=[],goals=[],records={},negRecords={},goalRecords={};
+let habits=[],goals=[],records={},negRecords={},goalRecords={},countRecords={};
 let selIco=ICONS[0],selCol='c0',curFreq='daily',curNFreq='daily',mType='habit',manT='h',stTab='week';
 let wkOff=0,calY,calM,hcalY,hcalM,yearY;
 
@@ -101,7 +101,7 @@ function showSaveStatus(ok,msg){
 function lsSave(){
   // localStorage 為主要儲存，同步寫入
   try{
-    localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords}));
+    localStorage.setItem('hf_data',JSON.stringify({habits,goals,records,negRecords,goalRecords,countRecords}));
     return true;
   }catch(e){console.error('localStorage save error:',e);return false;}
 }
@@ -112,7 +112,7 @@ function lsLoad(){
     if(!bk)return false;
     const d=JSON.parse(bk);
     habits=d.habits||[];goals=d.goals||[];records=d.records||{};
-    negRecords=d.negRecords||{};goalRecords=d.goalRecords||{};
+    negRecords=d.negRecords||{};goalRecords=d.goalRecords||{};countRecords=d.countRecords||{};
     return true;
   }catch(e){console.error('localStorage load error:',e);return false;}
 }
@@ -125,7 +125,7 @@ async function save(){
   // 第二步：背景同步到 Firebase（不影響 UI）
   try{
     const userId=getUserId();
-    await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords,goalRecords});
+    await setDoc(doc(db,'users',userId),{habits,goals,records,negRecords,goalRecords,countRecords});
   }catch(e){
     const fb=document.getElementById('fbStatus');if(fb)fb.style.display='block';
   }
@@ -146,7 +146,7 @@ async function syncFromFirebase(){
     if(snap.exists()){
       const data=snap.data();
       habits=data.habits||[];goals=data.goals||[];
-      records=data.records||{};negRecords=data.negRecords||{};goalRecords=data.goalRecords||{};
+      records=data.records||{};negRecords=data.negRecords||{};goalRecords=data.goalRecords||{};countRecords=data.countRecords||{};
       lsSave();
       buildAll();
       showSaveStatus(true,'✓ 已從雲端同步');
@@ -235,6 +235,25 @@ function buildTodayH(){
   const retroNote=isRetro?`<div style="font-size:11px;color:var(--coral);font-weight:700;margin-bottom:8px;padding:6px 10px;background:var(--pink-l);border-radius:8px">📅 補打 ${viewDate} 的記錄</div>`:'';
   el.innerHTML=retroNote+due.map(h=>{
     const done=isDone(h.id,targetDs),st=strk(h.id),rl=rTxt(h);
+    if(h.countMode){
+      const target=h.countTarget||1;
+      const count=(countRecords[targetDs]&&countRecords[targetDs][h.id])||0;
+      const reached=count>=target;
+      return `<div class="hcard${done?' done':''}">
+        <div class="hico ${h.color}">${h.icon}</div>
+        <div class="hmeta">
+          <div class="hname">${h.name}</div>
+          <div class="hfreq">今日目標：${target} 次　<span style="font-weight:800;color:${reached?'var(--sage)':'var(--coral)'}">${count}/${target}</span></div>
+          ${rl?`<div class="hrange">📅 ${rl}</div>`:''}
+          ${st>1&&!isRetro?`<span class="hstreak">🔥 連續${st}天</span>`:''}
+        </div>
+        <div class="neg-counter">
+          <button class="neg-btn" onclick="cntDec('${h.id}','${targetDs}')">－</button>
+          <span class="neg-num">${count}</span>
+          <button class="neg-btn" onclick="cntInc('${h.id}','${targetDs}')">＋</button>
+        </div>
+      </div>`;
+    }
     return `<div class="hcard${done?' done':''}" onclick="togH('${h.id}','${targetDs}')">
       <div class="hico ${h.color}">${h.icon}</div>
       <div class="hmeta">
@@ -334,6 +353,28 @@ function togNeg(id,targetDs){
     records[targetDs].push(id);toast(targetDs===td()?'✓ 打卡成功！':'✓ 補打成功！');
   }else{records[targetDs].splice(idx,1);}
   save();buildTodayNeg();updatePR();buildWeek();
+}
+function cntInc(id,targetDs){
+  if(!targetDs)targetDs=td();
+  if(!countRecords[targetDs])countRecords[targetDs]={};
+  countRecords[targetDs][id]=(countRecords[targetDs][id]||0)+1;
+  const h=habits.find(x=>x.id===id);
+  if(h&&countRecords[targetDs][id]>=(h.countTarget||1)){
+    if(!records[targetDs])records[targetDs]=[];
+    if(!records[targetDs].includes(id)){records[targetDs].push(id);toast('🎉 達標！已自動打卡');}
+  }
+  save();buildTodayH();updatePR();buildWeek();
+}
+function cntDec(id,targetDs){
+  if(!targetDs)targetDs=td();
+  if(!countRecords[targetDs])countRecords[targetDs]={};
+  const cur=countRecords[targetDs][id]||0;
+  if(cur>0)countRecords[targetDs][id]=cur-1;
+  const h=habits.find(x=>x.id===id);
+  if(h&&(countRecords[targetDs][id]||0)<(h.countTarget||1)){
+    if(records[targetDs]){const i=records[targetDs].indexOf(id);if(i>=0)records[targetDs].splice(i,1);}
+  }
+  save();buildTodayH();updatePR();buildWeek();
 }
 function togH(id,targetDs){
   if(!targetDs)targetDs=td();
@@ -809,12 +850,17 @@ function editItem(type,id){
     if(item.freq.type==='weekly-n'){document.getElementById('fs-weekly-n').classList.add('show');document.getElementById('fWN').value=item.freq.n}
     if(item.freq.type==='weekly-days'){document.getElementById('fs-weekly-days').classList.add('show');document.querySelectorAll('.dchip').forEach(el=>el.classList.toggle('sel',item.freq.days.includes(Number(el.dataset.d))))}
     if(item.freq.type==='monthly-n'){document.getElementById('fs-monthly-n').classList.add('show');document.getElementById('fMN').value=item.freq.n}
+    const cm=item.countMode||false;
+    document.getElementById('countModeChk').checked=cm;
+    document.getElementById('countTargetRow').style.display=cm?'block':'none';
+    if(cm)document.getElementById('countTargetVal').value=item.countTarget||1;
   }else{
     document.getElementById('gTotal').value=item.total||'';document.getElementById('gUnit').value=item.unit||'';document.getElementById('gCur').value=item.current||0;
   }
   document.getElementById('modal').classList.add('open');
 }
 function closeModal(){document.getElementById('modal').classList.remove('open')}
+function toggleCountMode(el){document.getElementById('countTargetRow').style.display=el.checked?'block':'none';}
 function saveItem(){
   const name=document.getElementById('iName').value.trim();if(!name){toast('請輸入名稱');return}
   const eId=document.getElementById('eId').value,eType=document.getElementById('eType').value;
@@ -832,8 +878,10 @@ function saveItem(){
     if(curFreq==='weekly-n')freq.n=parseInt(document.getElementById('fWN').value)||3;
     if(curFreq==='weekly-days'){freq.days=[...document.querySelectorAll('.dchip.sel')].map(e=>Number(e.dataset.d));if(!freq.days.length){toast('請選擇至少一天');return}}
     if(curFreq==='monthly-n')freq.n=parseInt(document.getElementById('fMN').value)||4;
-    if(eId){const i=habits.findIndex(h=>h.id===eId);if(i>=0)habits[i]={...habits[i],name,icon:selIco,color:selCol,freq,dateStart,dateEnd,note}}
-    else habits.push({id:uid(),name,icon:selIco,color:selCol,freq,dateStart,dateEnd,note});
+    const countMode=document.getElementById('countModeChk').checked;
+    const countTarget=countMode?(parseInt(document.getElementById('countTargetVal').value)||1):null;
+    if(eId){const i=habits.findIndex(h=>h.id===eId);if(i>=0)habits[i]={...habits[i],name,icon:selIco,color:selCol,freq,dateStart,dateEnd,note,countMode:countMode||null,countTarget:countTarget||null}}
+    else habits.push({id:uid(),name,icon:selIco,color:selCol,freq,dateStart,dateEnd,note,countMode:countMode||null,countTarget:countTarget||null});
   }else{
     const total=parseFloat(document.getElementById('gTotal').value);if(isNaN(total)||total<=0){toast('請輸入目標總量');return}
     const unit=document.getElementById('gUnit').value.trim(),cur=parseFloat(document.getElementById('gCur').value)||0;
@@ -890,6 +938,7 @@ window.setMT=setMT;window.setMT2=setMT2;window.pickFreq=pickFreq;window.togDay=t
 window.pickIco=pickIco;window.pickCol=pickCol;window.closeModal=closeModal;window.saveItem=saveItem;
 window.editItem=editItem;window.togH=togH;window.qSet=qSet;window.qAdd=qAdd;
 window.negInc=negInc;window.negInc2=negInc2;window.negDec=negDec;window.togNeg=togNeg;window.pickNFreq=pickNFreq;
+window.cntInc=cntInc;window.cntDec=cntDec;window.toggleCountMode=toggleCountMode;
 window.qDec=qDec;window.qInc=qInc;window.qInc2=qInc2;
 window.exportCSV=exportCSV;window.copyUID=copyUID;window.importUID=importUID;
 

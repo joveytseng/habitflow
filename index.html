@@ -234,6 +234,16 @@
         </div>
         <div class="fsub" id="fs-monthly-n"><label class="fl" style="margin-top:9px">每月幾次</label><input class="fi" type="number" id="fMN" min="1" max="31" value="4" style="font-size:16px"></div>
       </div>
+      <div class="fg" style="margin-top:4px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 0">
+          <input type="checkbox" id="countModeChk" onchange="toggleCountMode(this)" style="width:18px;height:18px;accent-color:var(--coral);cursor:pointer">
+          <span style="font-size:14px;font-weight:600;color:var(--t1)">計算次數（達標自動打卡）</span>
+        </label>
+        <div id="countTargetRow" style="display:none">
+          <label class="fl">每日目標次數</label>
+          <input class="fi" type="number" id="countTargetVal" placeholder="例：8" min="1" style="font-size:16px">
+        </div>
+      </div>
     </div>
     <div id="nfields" style="display:none">
       <div class="fg">
@@ -269,7 +279,7 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script type="module" src="app.js?v=7"></script>
+<script type="module" src="app.js?v=8"></script>
 <script>
 // Service Worker
 if ('serviceWorker' in navigator) {
